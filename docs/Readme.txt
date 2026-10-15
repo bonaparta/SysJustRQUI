@@ -1,6 +1,10 @@
 我要用 rust 寫一支券商報價軟體
 使用 Zed UI 框架產生 UI
 
+[專案位置]
+程式碼：https://github.com/bonaparta/SysJustRQUI
+Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
+
 [許願池]
 1. 使用 loop engineering 去爬 issue，自己抓回來開發
 2. 跨平台(Windows、Linux、MacOS、Android、iOS)

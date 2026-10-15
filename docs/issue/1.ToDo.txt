@@ -1,5 +1,9 @@
-issue#? - 使用 GPUI 快速開發 XQ 的備品
-https://gitscr1.moneydj.com/xqui1/xqdevelop/-/work_items/?
+待辦草稿 - 使用 GPUI 快速開發 XQ 的備品
+
+[本專案]
+Repository：https://github.com/bonaparta/SysJustRQUI
+Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
+本檔是需求草稿，檔名中的 1 不代表 GitHub issue #1；正式議題編號以 GitHub 為準。
 
 XQ 是一個很舊的 codebase 使用 MFC 開發
 
@@ -8,10 +12,10 @@ XQ 是一個很舊的 codebase 使用 MFC 開發
 2. UI 要可以快速換嵌套
 3. 可以依功能選擇模組
 
-[codebase]
+[歷史參考 codebase（非本專案工作目錄）]
 gpui-xqnext D:\src\xqnext-gpui
 
-[codebase 列表]
+[相關專案參考列表（非本專案的遠端倉庫）]
 | 簡稱 | 路徑 | Server |
 | --- | --- | --- |
 | gpui-xq | D:\src\gpui-xq-demo | https://github.com/tina-moneydj/gpui-xq-demo.git |
@@ -20,8 +24,9 @@ gpui-xqnext D:\src\xqnext-gpui
 | XQNext | D:\src\xqnext | git@gitscr1.moneydj.com:xqnext/xqnext.git |
 | gpui-xqnext | D:\src\xqnext-gpui | git@gitscr1.moneydj.com:xqnext/xqnext-gpui.git |
 
-[gitlab token]
-gitlab.token.config
+[認證]
+本專案使用 GitHub CLI 認證，設定步驟見 docs/loop-engineering.md。
+上述參考資料中的公司倉庫網址僅供辨識既有專案，本專案的程式碼與 issue 均由 GitHub 管理。
 
 [Tools]
 VS2026 C:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars32.bat

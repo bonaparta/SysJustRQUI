@@ -2,6 +2,8 @@
 
 目標：agent 自己到 GitHub issue 抓工作 → 開發 → push → 回報 → 交接給下一手。
 Repo：https://github.com/bonaparta/SysJustRQUI
+Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
+本專案的程式碼與 issue 均由 GitHub 管理；`docs/issue/` 是本地需求草稿，檔名不代表 GitHub issue 編號。
 
 ## 一次性環境設定（每台電腦做一次）
 
