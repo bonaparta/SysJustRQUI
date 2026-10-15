@@ -1,0 +1,27 @@
+issue#? - 使用 GPUI 快速開發 XQ 的備品
+https://gitscr1.moneydj.com/xqui1/xqdevelop/-/work_items/?
+
+XQ 是一個很舊的 codebase 使用 MFC 開發
+
+我想要重構它目前想到的願望是
+1. 要用 rust 開發
+2. UI 要可以快速換嵌套
+3. 可以依功能選擇模組
+
+[codebase]
+gpui-xqnext D:\src\xqnext-gpui
+
+[codebase 列表]
+| 簡稱 | 路徑 | Server |
+| --- | --- | --- |
+| gpui-xq | D:\src\gpui-xq-demo | https://github.com/tina-moneydj/gpui-xq-demo.git |
+| XQ | D:\src\xqlive | git@gitscr1.moneydj.com:xqui1/xqlive.git |
+| DAQEngine | D:\src\DAQEngine | git@gitscr1.moneydj.com:xqdata/DAQEngine.git |
+| XQNext | D:\src\xqnext | git@gitscr1.moneydj.com:xqnext/xqnext.git |
+| gpui-xqnext | D:\src\xqnext-gpui | git@gitscr1.moneydj.com:xqnext/xqnext-gpui.git |
+
+[gitlab token]
+gitlab.token.config
+
+[Tools]
+VS2026 C:\Program Files\Microsoft Visual Studio\18\Professional\VC\Auxiliary\Build\vcvars32.bat
