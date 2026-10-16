@@ -76,3 +76,6 @@ fn main() {
         cx.activate(true);
     });
 }
+
+#[allow(dead_code)]
+fn ci_should_fail()   ->   bool { let x = 1; x == x }
