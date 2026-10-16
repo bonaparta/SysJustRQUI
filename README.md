@@ -50,7 +50,6 @@
 ```bash
 cargo build
 cargo run
-cargo run --bin hello_gpui
 cargo test
 ```
 
