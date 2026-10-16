@@ -26,7 +26,7 @@ impl Render for HelloWorld {
                     .text_sm()
                     .text_color(rgb(0xa6adc8))
                     .mt_3()
-                    .child("Zed GPUI - GPU Accelerated Window (Windows Direct3D/Vulkan)"),
+                    .child("Zed GPUI - GPU Accelerated Window"),
             )
             .child(
                 div()
