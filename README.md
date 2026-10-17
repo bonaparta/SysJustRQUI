@@ -1,4 +1,6 @@
-# XQ 模組化重構專案 (XQFantasy)
+# SysRQUI：XQ 模組化重構專案
+
+[![CI](https://github.com/bonaparta/SysJustRQUI/actions/workflows/ci.yml/badge.svg)](https://github.com/bonaparta/SysJustRQUI/actions/workflows/ci.yml)
 
 本專案基於 **Rust / GPUI** 新架構，建立「產品 → 模組 → 相依」的自動化組裝與交付機制。核心目標是依據客戶訂閱的產品功能，在建置時期（Build-time）僅編入所需模組，讓開發團隊能快速組裝並發布專屬的客製化版本。
 
@@ -50,7 +52,6 @@
 ```bash
 cargo build
 cargo run
-cargo run --bin hello_gpui
 cargo test
 ```
 
