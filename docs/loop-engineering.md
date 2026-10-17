@@ -1,6 +1,6 @@
 # Loop Engineering 操作步驟
 
-目標：agent 自己到 GitHub issue 抓工作 → 開發 → push → 回報 → 交接給下一手。
+目標：agent 自己到 GitHub issue 抓工作 → 開分支開發 → 開 PR → CI 綠燈 merge → 回報 → 交接給下一手。
 Repo：https://github.com/bonaparta/SysJustRQUI
 Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
 本專案的程式碼與 issue 均由 GitHub 管理；`docs/issue/` 是本地需求草稿，檔名不代表 GitHub issue 編號。
@@ -42,23 +42,34 @@ Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
    gh issue view 1 --comments
    ```
    人類新發的 issue 要向使用者回報；和交接檔的下一步衝突時，先問使用者要先做哪個。
-4. **開發與驗證**：
+4. **開分支**（程式碼一律走 PR；只改文件可跳過 4、6、7，直接在 `main` commit + push）：
    ```bash
-   cargo build
-   cargo test
+   git switch -c feat/issue-1-簡述
    ```
-5. **Commit 與 push**：
+5. **開發與驗證**（和 CI 跑的一樣）：
+   ```bash
+   cargo fmt --check
+   cargo build --all-targets
+   cargo test
+   cargo clippy --all-targets -- -D warnings
+   ```
+6. **Commit、push 分支、開 PR**（一張 issue 盡量只開一個 PR，不開純驗證用的 PR）：
    ```bash
    git add <檔案>
    git commit -m "feat: ..." -m "說明" -m "Co-Authored-By: <Agent> <email>"
-   git push
+   git push -u origin HEAD
+   gh pr create --title "feat: ..." --body "Closes #1 ..."
    ```
-6. **回報到 issue**（附上 commit hash）：
+7. **CI 綠燈後 merge**（`windows-latest`、`macos-latest` 都要過，由 agent 自己 merge）：
    ```bash
-   git log -1 --format=%H
-   gh issue comment 1 --body "完成了什麼；commit <hash>；下一步 ..."
+   gh pr checks --watch
+   gh pr merge --merge --delete-branch
    ```
-7. **交接**：新增 `docs/handoff/handoff_YYYYMMDD.md`，更新 `AGENTS.md` 的「目前交接檔」，然後 commit + push。
+8. **回報到 issue**（附上 PR 與 merge commit）：
+   ```bash
+   gh issue comment 1 --body "完成了什麼；PR #<n>；merge commit <hash>；下一步 ..."
+   ```
+9. **交接**：新增 `docs/handoff/handoff_YYYYMMDD.md`，更新 `AGENTS.md` 的「目前交接檔」，然後在 `main` commit。要不要 push 依使用者當次指示，沒說就先問。
 
 ## 注意
 

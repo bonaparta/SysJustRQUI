@@ -41,10 +41,18 @@ cargo clippy
 完整操作步驟見 `docs/loop-engineering.md`。簡述：
 
 1. `gh issue list` / `gh issue view <N>` 選一張 issue。
-2. 開發、測試（`cargo build`、`cargo test`）。
-3. commit（訊息格式見下）→ `git push`。
-4. `gh issue comment <N>` 回報做了什麼、commit hash。
-5. 在 `docs/handoff/` 新增或更新 `handoff_YYYYMMDD.md`，並更新本檔「目前交接檔」那一行。
+2. 從 `main` 開分支（或 worktree），例如 `feat/issue-<N>-<簡述>`。
+3. 開發、測試（`cargo build`、`cargo test`、`cargo fmt`、`cargo clippy`）。
+4. commit（訊息格式見下）→ push 分支 → `gh pr create`，PR 內文寫 `Closes #<N>`。
+5. CI（`windows-latest`、`macos-latest`）綠燈後，由 agent 自己 merge：`gh pr merge --merge --delete-branch`。
+6. `gh issue comment <N>` 回報做了什麼、PR 與 merge commit。
+7. 在 `docs/handoff/` 新增或更新 `handoff_YYYYMMDD.md`，並更新本檔「目前交接檔」那一行。
+
+PR 規則：
+
+- **程式碼一律走 PR**，CI 綠燈才 merge。
+- **只改文件**（README、`docs/`、本檔等）可以直接 push `main`，不必開 PR。交接檔要不要 push，依使用者當次指示，沒說就先問。
+- **一張 issue 盡量只開一個 PR**：issue 與 PR 共用編號，PR 太多 issue 編號會跳很快。不要開純驗證用的 PR。
 
 ## 規則
 
