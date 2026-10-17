@@ -28,16 +28,20 @@ Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
 
 ## 每一輪 loop
 
-1. **讀交接**：打開 `docs/handoff/` 最新的 `handoff_YYYYMMDD.md`。
-2. **同步程式碼**：
+1. **同步程式碼**：
    ```bash
    git pull --ff-only
    ```
-3. **讀 issue**：
+2. **讀交接**：打開 `docs/handoff/` 最新的 `handoff_YYYYMMDD.md`。
+3. **讀 issue**：交接檔之外，人類也會直接在 GitHub 發 issue。
    ```bash
+   # 人類發的需求：沒有 ai-created label 的 open issue
+   gh issue list --state open --search "-label:ai-created"
+   # 全部 open issue
    gh issue list
    gh issue view 1 --comments
    ```
+   人類新發的 issue 要向使用者回報；和交接檔的下一步衝突時，先問使用者要先做哪個。
 4. **開發與驗證**：
    ```bash
    cargo build
@@ -60,4 +64,9 @@ Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
 
 - 機密（token、`gitlab.token.config`）不進 repo。
 - 不 force push。
+- AI 開 issue 一律加 `ai-created` label：
+  ```bash
+  gh issue create --label ai-created --title "..." --body-file <檔案>
+  ```
+  issue 作者都是同一個 GitHub 帳號，沒有這個 label 的 issue 視為人類發的需求。
 - 長篇留言可以改用 `--body-file <檔案>`，避免 shell 跳脫問題。

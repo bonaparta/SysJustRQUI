@@ -5,9 +5,17 @@
 
 ## 開工第一件事
 
-1. 讀 `docs/handoff/` 底下**日期最新**的 `handoff_YYYYMMDD.md`，那是上一手留下的進度與下一步。
-2. 讀 `README.md`（專案目標、技術選型、開發方式）。
-3. 先用 3 句話向使用者回報「現在做到哪、下一步是什麼」，**不要自己猜進度**；有疑問先問，等使用者確認後再動手。
+工作來源有兩個：**交接檔**（上一手 AI 留的）與 **GitHub issue**（人類也會直接在上面發需求）。兩個都要看。
+
+1. `git pull --ff-only`，確保讀到的是最新的交接檔與文件。
+2. 讀 `docs/handoff/` 底下**日期最新**的 `handoff_YYYYMMDD.md`，那是上一手留下的進度與下一步。
+3. 讀 `README.md`（專案目標、技術選型、開發方式）。
+4. 撈人類發的 issue：
+   ```bash
+   gh issue list --state open --search "-label:ai-created"
+   ```
+   沒有 `ai-created` label 的 open issue 都是人類發的需求。交接檔沒提到的，就是上一手之後新發的。
+5. 先用 3 句話向使用者回報「現在做到哪、下一步是什麼」，並列出人類新發的 issue，**不要自己猜進度**。人類的 issue 和交接檔的下一步衝突時，先問使用者要先做哪個。有疑問先問，等使用者確認後再動手。
 
 目前交接檔：`docs/handoff/handoff_20261018.md`
 
@@ -50,4 +58,5 @@ cargo clippy
 - **Token 用量低於 10% 就交接**：工作中定期檢查剩餘的 token／context 用量。剩不到 10% 時，停下手邊工作，先寫交接檔：正在做哪一項、做到哪一步、哪些改動還沒 commit、下一步要做什麼。目的是讓下一個 AI 直接接手，不必猜進度或重新掃整個 repo。
 - **根目錄 `Readme.txt` 是使用者的個人筆記**：給人想事情、做紀錄用。AI 不要修改、不要 commit（已列在 `.gitignore`）。
 - **新工作先開 issue**：基礎建設與功能開發，先在 GitHub 開 issue 寫清楚目標與驗收條件，再開始做。
+- **AI 開的 issue 一律加 `ai-created` label**（`gh issue create --label ai-created ...`）。沒有這個 label 的 issue 視為人類發的需求。issue 作者都是同一個 GitHub 帳號，只能靠 label 區分。
 - 文件使用繁體中文。
