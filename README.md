@@ -65,5 +65,6 @@ cargo test
 
 ## 專案狀態
 
-- 已完成：Hello 視窗；多 agent 讀 issue、commit、push 流程打通。
-- 進行中：建立 CI、分支加 PR 自動 merge 流程，並把待完成功能拆成 GitHub issue。
+- 已完成：Hello 視窗；多 agent 讀 issue、開 PR、交接的流程打通；CI（Windows + macOS 跑 fmt/build/test/clippy）。
+- 進行中：[#5 開發流程基礎建設](https://github.com/bonaparta/SysJustRQUI/issues/5)（分支保護、workspace 分層、loop 流程文件、debug 環境指令）。
+- 之後：把待完成功能拆成 GitHub issue、每日包版發到 GitHub Releases。
