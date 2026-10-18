@@ -59,6 +59,10 @@ cargo clippy --workspace --all-targets -- -D warnings
 
 `cargo run` 會啟動 `crates/app`（執行檔 `sysrqui`）。CI 的 build、test、clippy 會明確檢查整個 workspace，包含開發工具 crate `sysrqui-xtask`；fmt 使用 `cargo fmt --all --check`。根目錄一般 `cargo run` 仍只會選取 app，不會改成執行 xtask。
 
+### 開發環境檢查
+
+執行 `cargo xtask doctor` 檢查 `git`、`cargo`、`rustc`、`gh` 是否可找到並能回報版本，同時列出作業系統與架構。`codex`、`claude`、`gemini`、`grok` 只檢查命令是否存在；doctor 不會呼叫它們，也不檢查登入或非互動能力。必要工具缺少或版本檢查失敗時命令會以非零狀態結束，並顯示修復方向。doctor 不會安裝工具、登入 GitHub 或讀取認證資料。
+
 ### VS Code 除錯設定
 
 先安裝 [Rust Analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer) 與 [CodeLLDB](https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb)，並在 VS Code 開啟 repository 根目錄。於該目錄執行：
