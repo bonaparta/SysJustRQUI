@@ -1,7 +1,10 @@
 use gpui::*;
+use sysrqui_quote::Quote;
+use sysrqui_ui::{card, theme};
 
 struct HelloWorld {
     text: SharedString,
+    quote: Quote,
 }
 
 impl Render for HelloWorld {
@@ -12,19 +15,19 @@ impl Render for HelloWorld {
             .items_center()
             .justify_center()
             .size_full()
-            .bg(rgb(0x181825))
-            .text_color(rgb(0xcdd6f4))
+            .bg(theme::background())
+            .text_color(theme::text())
             .child(
                 div()
                     .text_2xl()
                     .font_weight(FontWeight::BOLD)
-                    .text_color(rgb(0x89b4fa))
+                    .text_color(theme::accent())
                     .child(self.text.clone()),
             )
             .child(
                 div()
                     .text_sm()
-                    .text_color(rgb(0xa6adc8))
+                    .text_color(theme::subtext())
                     .mt_3()
                     .child("Zed GPUI - GPU Accelerated Window"),
             )
@@ -34,20 +37,8 @@ impl Render for HelloWorld {
                     .flex_row()
                     .gap_4()
                     .mt_6()
-                    .child(
-                        div()
-                            .p_3()
-                            .rounded_md()
-                            .bg(rgb(0x313244))
-                            .child("📈 2330 台積電: 980.00 (+1.55%)"),
-                    )
-                    .child(
-                        div()
-                            .p_3()
-                            .rounded_md()
-                            .bg(rgb(0x313244))
-                            .child("⚡ 即時撮合引擎已就緒"),
-                    ),
+                    .child(card(format!("📈 {}", self.quote)))
+                    .child(card("⚡ 即時撮合引擎已就緒")),
             )
     }
 }
@@ -68,6 +59,7 @@ fn main() {
         cx.open_window(window_options, |_window, cx| {
             cx.new(|_cx| HelloWorld {
                 text: "Hello, World! 歡迎來到 SysRQUI".into(),
+                quote: Quote::new("2330", "台積電", 980.0, 1.55),
             })
         })
         .unwrap();

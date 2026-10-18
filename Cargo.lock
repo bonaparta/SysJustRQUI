@@ -5255,6 +5255,19 @@ name = "sysrqui"
 version = "0.1.0"
 dependencies = [
  "gpui",
+ "sysrqui-quote",
+ "sysrqui-ui",
+]
+
+[[package]]
+name = "sysrqui-quote"
+version = "0.1.0"
+
+[[package]]
+name = "sysrqui-ui"
+version = "0.1.0"
+dependencies = [
+ "gpui",
 ]
 
 [[package]]
