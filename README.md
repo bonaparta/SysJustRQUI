@@ -93,6 +93,8 @@ docs/             loop engineering 流程、交接檔
 
 - 共用規則：[AGENTS.md](AGENTS.md)
 - Loop engineering 操作步驟：[docs/loop-engineering.md](docs/loop-engineering.md)
+- Loop 工作契約、任務範本與驗收回報格式：[docs/loop-task-contract.md](docs/loop-task-contract.md)
+- Loop Engineering 前置建置計畫：[docs/plan-loop-engineering-step.md](docs/plan-loop-engineering-step.md)
 - 最新進度與下一步：`docs/handoff/` 底下日期最新的交接檔
 
 ## 專案狀態
