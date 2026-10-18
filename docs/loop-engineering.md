@@ -58,10 +58,10 @@ Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
    ```
 5. **開發與驗證**（和 CI 跑的一樣；只改 `*.md` 或 `docs/` 時 CI 會跳過編譯）：
    ```bash
-   cargo fmt --check
-   cargo build --all-targets
-   cargo test
-   cargo clippy --all-targets -- -D warnings
+   cargo fmt --all --check
+   cargo build --workspace --all-targets
+   cargo test --workspace
+   cargo clippy --workspace --all-targets -- -D warnings
    ```
 6. **Commit、push 分支、開 PR**（一張 issue 盡量只開一個 PR，不開純驗證用的 PR）：
    ```bash

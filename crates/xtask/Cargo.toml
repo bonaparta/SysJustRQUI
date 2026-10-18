@@ -1,0 +1,8 @@
+[package]
+name = "sysrqui-xtask"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "sysrqui-xtask"
+path = "src/main.rs"
