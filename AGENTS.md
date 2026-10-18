@@ -17,7 +17,7 @@
    沒有 `ai-created` label 的 open issue 都是人類發的需求。交接檔沒提到的，就是上一手之後新發的。
 5. 用 3 句話回報「現在做到哪、下一步是什麼」，並列出人類新發的 issue，**不要自己猜進度**。回報完**直接開工**，不必等確認：依「自主範圍」挑下一張可做的 issue，一路做到 merge。
 
-目前交接檔：`docs/handoff/handoff_20261018.md`
+目前交接檔：`docs/handoff/handoff_20261019.md`
 
 ## 專案概要
 
