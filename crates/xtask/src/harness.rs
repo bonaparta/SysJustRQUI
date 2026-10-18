@@ -613,11 +613,9 @@ fn run_engine_paths(
         state.attempts = attempt;
     }
     #[cfg(windows)]
-    if resuming {
-        if let Some(root) = root {
-            validate_active_assignment(root, config)?;
-            validate_issue_for_resume(root, paths, config)?;
-        }
+    if resuming && let Some(root) = root {
+        validate_active_assignment(root, config)?;
+        validate_issue_for_resume(root, paths, config)?;
         reconcile(config, paths)?;
     }
     if state.attempts >= config.max_attempts {
