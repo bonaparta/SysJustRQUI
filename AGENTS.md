@@ -63,6 +63,8 @@ PR 規則：
 
 人類只在 issue 這一層把關：**issue 是 `ready`，就代表目標與驗收條件已同意**，agent 從開分支到 merge、回報、寫交接檔一路做完，中間不問。
 
+人類也可以在當次對話明確授權指定的一批 issue 全部開工，由 coordinator 代加 `ready` 並在主 issue 記錄授權範圍；不必逐張操作。此授權不延伸到批次之外的新 AI 提案，派工仍須檢查依賴與 `in-progress`／`blocked` 狀態。
+
 | label | 意思 |
 |---|---|
 | `ready` | 可以開工。人類發的 issue 視同 `ready`；AI 開的 issue 要人類加上 `ready` 才能做 |

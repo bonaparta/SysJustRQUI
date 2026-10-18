@@ -5,6 +5,8 @@ Repo：https://github.com/bonaparta/SysJustRQUI
 Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
 本專案的程式碼與 issue 均由 GitHub 管理；`docs/issue/` 是本地需求草稿，檔名不代表 GitHub issue 編號。
 
+跨工具共用的 issue 欄位、worker 任務提示、blocked 提問、checkpoint、完成回報與範例見[Loop 工作契約](loop-task-contract.md)。本文件描述操作順序；共用規則以 `AGENTS.md` 為準。
+
 ## 一次性環境設定（每台電腦做一次）
 
 1. 安裝 GitHub CLI：
@@ -42,17 +44,17 @@ Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
    gh issue view 1 --comments
    ```
    人類新發的 issue 要向使用者回報。挑 issue 的順序與什麼時候要停，見 `AGENTS.md`「自主範圍」。
-   領了 issue 就加 `in-progress`，避免兩個 agent 做同一張：
+   `ai-created` issue 預設須由人類確認為 `ready` 才能開工。人類可在當次對話明確授權 coordinator 將指定的一批 issue 標為 `ready`；授權只適用該批與該次安排，不改變其他 AI 建立 issue 的規則。coordinator 派工時先確認依賴、owner、run-id 與 branch/worktree，再記錄 `in-progress`：
    ```bash
    gh issue list --label ready
    gh issue edit 1 --add-label in-progress
    ```
-   遇到要停的情況，不要原地等：留言提問並改成 `blocked`，然後做下一張：
+   `in-progress` label 不是互斥鎖；只由已指派的 coordinator 啟動 worker。逾時先查 checkpoint、owner、worktree 與 PR，不能直接搶單或清除工作。遇到要停的情況，依[Blocked 提問格式](loop-task-contract.md#blocked-提問格式)記錄問題與選項並改成 `blocked`，然後依授權和依賴安排下一張：
    ```bash
    gh issue comment 1 --body "問題：...；選項 A / B；推薦 A"
    gh issue edit 1 --add-label blocked --remove-label in-progress
    ```
-4. **開分支**（所有改動都走 PR，包括文件與交接檔；`main` 有分支保護，直接 push 會被拒絕）：
+4. **開分支／worktree**（每個 issue 對應一個 owner、run-id、branch 與 worktree；位置由本機設定決定。所有改動都走 PR，包括文件與交接檔；`main` 有分支保護，直接 push 會被拒絕）：
    ```bash
    git switch -c feat/issue-1-簡述
    ```
@@ -63,19 +65,19 @@ Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
    cargo test --workspace
    cargo clippy --workspace --all-targets -- -D warnings
    ```
-6. **Commit、push 分支、開 PR**（一張 issue 盡量只開一個 PR，不開純驗證用的 PR）：
+6. **Commit、push 分支、開 PR**（一張 issue 盡量只開一個 PR，不開純驗證用的 PR。全部驗收已可由 CI／合併完成時，PR 描述可用 `Closes #N`；尚待人工驗收時用 `Refs #N`，issue 保持開啟並標為 `needs-review`）：
    ```bash
    git add <檔案>
    git commit -m "feat: ..." -m "說明" -m "Co-Authored-By: <Agent> <email>"
    git push -u origin HEAD
-   gh pr create --title "feat: ..." --body "Closes #1 ..."
+   gh pr create --title "feat: ..." --body "Refs #1 ..."
    ```
 7. **開啟自動 merge**（`windows-latest`、`macos-latest` 都綠燈後 GitHub 自動 merge）：
    ```bash
    gh pr merge --auto --merge --delete-branch
    gh pr checks --watch
    ```
-8. **回報到 issue**（附上 PR 與 merge commit）：
+8. **回報到 issue**（附上 PR、merge commit、驗證結果和人工驗收狀態；依[完成回報格式](loop-task-contract.md#完成回報格式)填寫）：
    ```bash
    gh issue comment 1 --body "完成了什麼；PR #<n>；merge commit <hash>；下一步 ..."
    ```
