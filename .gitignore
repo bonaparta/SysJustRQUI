@@ -31,3 +31,4 @@ gitlab.token.config
 # 使用者個人筆記，只留在本機
 /Readme.txt
 /.vscode/
+/.loop/
