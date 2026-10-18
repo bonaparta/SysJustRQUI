@@ -26,17 +26,18 @@
   - `crates/app`（package `sysrqui`）：進入點 `crates/app/src/main.rs`，組裝視窗與模組（glue code），`cargo run` 即可啟動。
   - `crates/ui`（package `sysrqui-ui`）：GPUI 共用元件與配色。
   - `crates/quote`（package `sysrqui-quote`）：報價資料模型，純 Rust。
+  - `crates/xtask`（package `sysrqui-xtask`）：開發輔助指令；`cargo xtask debug-setup` 產生 VS Code 除錯設定。
 - 依賴方向：`app` → `ui`、`quote`。**`quote` 不可依賴 gpui 或 `ui`；`ui` 不依賴 `quote`**，資料轉畫面的程式放在 `app`。
 - GitHub repo：https://github.com/bonaparta/SysJustRQUI （issue 追蹤也在這裡）。
 
 ## 常用指令
 
 ```bash
-cargo build
+cargo build --workspace --all-targets
 cargo run
-cargo test
-cargo fmt
-cargo clippy
+cargo test --workspace
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
 ```
 
 ## Loop engineering 工作流程
@@ -45,7 +46,7 @@ cargo clippy
 
 1. `gh issue list` / `gh issue view <N>` 選一張 issue。
 2. 從 `main` 開分支（或 worktree），例如 `feat/issue-<N>-<簡述>`。
-3. 開發、測試（`cargo build`、`cargo test`、`cargo fmt`、`cargo clippy`）。
+3. 開發、測試（使用上方完整 workspace 檢查指令，涵蓋 xtask）。
 4. commit（訊息格式見下）→ push 分支 → `gh pr create`，PR 內文寫 `Closes #<N>`。
 5. 開啟自動 merge：`gh pr merge --auto --merge --delete-branch`，CI（`windows-latest`、`macos-latest`）綠燈後 GitHub 自動 merge。
 6. `gh issue comment <N>` 回報做了什麼、PR 與 merge commit。

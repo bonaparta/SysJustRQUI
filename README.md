@@ -52,10 +52,26 @@
 ```bash
 cargo build
 cargo run
-cargo test
+cargo test --workspace
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-`cargo run` 會啟動 `crates/app`（執行檔 `sysrqui`）；`cargo test`、`cargo clippy` 涵蓋所有 crate。
+`cargo run` 會啟動 `crates/app`（執行檔 `sysrqui`）。CI 的 build、test、clippy 會明確檢查整個 workspace，包含開發工具 crate `sysrqui-xtask`；fmt 使用 `cargo fmt --all --check`。根目錄一般 `cargo run` 仍只會選取 app，不會改成執行 xtask。
+
+### VS Code 除錯設定
+
+先安裝 [Rust Analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer) 與 [CodeLLDB](https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb)，並在 VS Code 開啟 repository 根目錄。於該目錄執行：
+
+```bash
+cargo xtask debug-setup
+```
+
+指令會在 `.vscode/` 產生 `launch.json`、`tasks.json` 與 `extensions.json`，供 VS Code 建置及以 CodeLLDB 除錯 `sysrqui`。Launch 設定由 CodeLLDB 的 [Cargo support](https://github.com/vadimcn/codelldb/blob/master/MANUAL.md#cargo-support) 選取執行檔，不依賴寫死的 `target/` 路徑；tasks 的 build 工作可單獨執行，launch 不會再呼叫該 task 以避免重複建置。
+
+完成後在 `crates/app/src/main.rs` 設中斷點，於 Run and Debug 選取 **Debug sysrqui** 並按 F5。建置仍需要已安裝並設定好的平台 Rust/Cargo 工具鏈與 GPUI 編譯相依；macOS 需可用的 Xcode Metal Toolchain，不要以 `gpui/runtime_shaders` 繞過。
+
+產生器只會建立不存在的檔案。若任一目標 JSON 已存在且內容不同，指令會列出衝突檔並停止，不改動任何目標檔；請先自行合併或移開既有設定再重跑。相同內容可安全重跑；`.vscode/` 是本機設定，不會納入版本控制。產生器不會建立 `settings.json`。
 
 ## 目錄結構
 
@@ -65,6 +81,7 @@ crates/
   app/            sysrqui：進入點，組裝視窗與模組（glue code）
   ui/             sysrqui-ui：GPUI 共用元件與配色
   quote/          sysrqui-quote：報價資料模型，純 Rust、不依賴 gpui
+  xtask/          sysrqui-xtask：專案開發輔助指令（cargo xtask）
 docs/             loop engineering 流程、交接檔
 ```
 
@@ -80,6 +97,6 @@ docs/             loop engineering 流程、交接檔
 
 ## 專案狀態
 
-- 已完成：Hello 視窗；多 agent 讀 issue、開 PR、交接的流程打通；CI（Windows + macOS 跑 fmt/build/test/clippy）。
-- 進行中：[#5 開發流程基礎建設](https://github.com/bonaparta/SysJustRQUI/issues/5)（分支保護、workspace 分層、loop 流程文件、debug 環境指令）。
-- 之後：把待完成功能拆成 GitHub issue、每日包版發到 GitHub Releases。
+- 已完成：Hello 視窗；多 agent 讀 issue、開 PR、交接的流程打通；雙平台 CI、分支保護、workspace 分層與 VS Code debug 設定產生指令。
+- 待人工驗收：[#5 開發流程基礎建設](https://github.com/bonaparta/SysJustRQUI/issues/5)的 Windows／macOS VS Code 實際中斷點操作。
+- 待審提案：[#9 Das 登入 UI 殼](https://github.com/bonaparta/SysJustRQUI/issues/9)、[#10 可拖拉分割欄框](https://github.com/bonaparta/SysJustRQUI/issues/10)、[#11 每日包版](https://github.com/bonaparta/SysJustRQUI/issues/11)，規格確認並標 `ready` 後開工。
