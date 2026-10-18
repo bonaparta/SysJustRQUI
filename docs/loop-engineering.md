@@ -41,7 +41,17 @@ Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
    gh issue list
    gh issue view 1 --comments
    ```
-   人類新發的 issue 要向使用者回報；和交接檔的下一步衝突時，先問使用者要先做哪個。
+   人類新發的 issue 要向使用者回報。挑 issue 的順序與什麼時候要停，見 `AGENTS.md`「自主範圍」。
+   領了 issue 就加 `in-progress`，避免兩個 agent 做同一張：
+   ```bash
+   gh issue list --label ready
+   gh issue edit 1 --add-label in-progress
+   ```
+   遇到要停的情況，不要原地等：留言提問並改成 `blocked`，然後做下一張：
+   ```bash
+   gh issue comment 1 --body "問題：...；選項 A / B；推薦 A"
+   gh issue edit 1 --add-label blocked --remove-label in-progress
+   ```
 4. **開分支**（所有改動都走 PR，包括文件與交接檔；`main` 有分支保護，直接 push 會被拒絕）：
    ```bash
    git switch -c feat/issue-1-簡述
@@ -69,7 +79,7 @@ Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
    ```bash
    gh issue comment 1 --body "完成了什麼；PR #<n>；merge commit <hash>；下一步 ..."
    ```
-9. **交接**：新增 `docs/handoff/handoff_YYYYMMDD.md`，更新 `AGENTS.md` 的「目前交接檔」，同樣開分支、走 PR。要不要開 PR 依使用者當次指示，沒說就先問。
+9. **交接**：新增 `docs/handoff/handoff_YYYYMMDD.md`，更新 `AGENTS.md` 的「目前交接檔」，同樣開分支、走 PR、auto-merge，不必先問。
 
 ## 注意
 

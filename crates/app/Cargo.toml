@@ -1,0 +1,9 @@
+[package]
+name = "sysrqui"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+gpui.workspace = true
+sysrqui-quote.workspace = true
+sysrqui-ui.workspace = true

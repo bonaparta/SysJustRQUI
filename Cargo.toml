@@ -1,7 +1,12 @@
-[package]
-name = "sysrqui"
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
+[workspace.dependencies]
 gpui = "0.2.2"
+sysrqui-quote = { path = "crates/quote" }
+sysrqui-ui = { path = "crates/ui" }
