@@ -22,8 +22,11 @@
 ## 專案概要
 
 - Rust 券商報價軟體，UI 使用 Zed 的 GPUI 框架。
-- Crate 名稱：`sysrqui`（`Cargo.toml`，edition 2024）。
-- 程式進入點：`src/main.rs`（SysRQUI 的 GPUI 範例視窗，`cargo run` 即可啟動）。
+- Cargo workspace（edition 2024），程式放在 `crates/`：
+  - `crates/app`（package `sysrqui`）：進入點 `crates/app/src/main.rs`，組裝視窗與模組（glue code），`cargo run` 即可啟動。
+  - `crates/ui`（package `sysrqui-ui`）：GPUI 共用元件與配色。
+  - `crates/quote`（package `sysrqui-quote`）：報價資料模型，純 Rust。
+- 依賴方向：`app` → `ui`、`quote`。**`quote` 不可依賴 gpui 或 `ui`；`ui` 不依賴 `quote`**，資料轉畫面的程式放在 `app`。
 - GitHub repo：https://github.com/bonaparta/SysJustRQUI （issue 追蹤也在這裡）。
 
 ## 常用指令
