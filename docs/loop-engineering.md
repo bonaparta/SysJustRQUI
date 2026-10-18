@@ -42,11 +42,11 @@ Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
    gh issue view 1 --comments
    ```
    人類新發的 issue 要向使用者回報；和交接檔的下一步衝突時，先問使用者要先做哪個。
-4. **開分支**（程式碼一律走 PR；只改文件可跳過 4、6、7，直接在 `main` commit + push）：
+4. **開分支**（所有改動都走 PR，包括文件與交接檔；`main` 有分支保護，直接 push 會被拒絕）：
    ```bash
    git switch -c feat/issue-1-簡述
    ```
-5. **開發與驗證**（和 CI 跑的一樣）：
+5. **開發與驗證**（和 CI 跑的一樣；只改 `*.md` 或 `docs/` 時 CI 會跳過編譯）：
    ```bash
    cargo fmt --check
    cargo build --all-targets
@@ -60,16 +60,16 @@ Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
    git push -u origin HEAD
    gh pr create --title "feat: ..." --body "Closes #1 ..."
    ```
-7. **CI 綠燈後 merge**（`windows-latest`、`macos-latest` 都要過，由 agent 自己 merge）：
+7. **開啟自動 merge**（`windows-latest`、`macos-latest` 都綠燈後 GitHub 自動 merge）：
    ```bash
+   gh pr merge --auto --merge --delete-branch
    gh pr checks --watch
-   gh pr merge --merge --delete-branch
    ```
 8. **回報到 issue**（附上 PR 與 merge commit）：
    ```bash
    gh issue comment 1 --body "完成了什麼；PR #<n>；merge commit <hash>；下一步 ..."
    ```
-9. **交接**：新增 `docs/handoff/handoff_YYYYMMDD.md`，更新 `AGENTS.md` 的「目前交接檔」，然後在 `main` commit。要不要 push 依使用者當次指示，沒說就先問。
+9. **交接**：新增 `docs/handoff/handoff_YYYYMMDD.md`，更新 `AGENTS.md` 的「目前交接檔」，同樣開分支、走 PR。要不要開 PR 依使用者當次指示，沒說就先問。
 
 ## 注意
 
