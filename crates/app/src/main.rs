@@ -2,6 +2,13 @@ use gpui::*;
 use sysrqui_quote::Quote;
 use sysrqui_ui::{card, theme};
 
+#[cfg(target_os = "windows")]
+const PLATFORM_NAME: &str = "Win";
+#[cfg(target_os = "macos")]
+const PLATFORM_NAME: &str = "Mac";
+#[cfg(not(any(target_os = "windows", target_os = "macos")))]
+const PLATFORM_NAME: &str = "Other";
+
 struct HelloWorld {
     text: SharedString,
     quote: Quote,
@@ -30,6 +37,13 @@ impl Render for HelloWorld {
                     .text_color(theme::subtext())
                     .mt_3()
                     .child("Zed GPUI - GPU Accelerated Window"),
+            )
+            .child(
+                div()
+                    .text_sm()
+                    .text_color(theme::subtext())
+                    .mt_1()
+                    .child(format!("Platform: {PLATFORM_NAME}")),
             )
             .child(
                 div()
