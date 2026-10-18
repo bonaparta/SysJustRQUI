@@ -896,6 +896,7 @@ mod tests {
         create, git_stdout, parse_args, remove, repo_context, status, validate_owner,
         validate_target_path,
     };
+    #[cfg(windows)]
     use std::ffi::OsString;
     use std::fs;
     use std::path::{Path, PathBuf};
