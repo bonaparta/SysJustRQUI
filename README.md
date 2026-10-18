@@ -89,6 +89,19 @@ cargo xtask worktree remove --issue 18 --owner codex
 
 `create` 會先 `git fetch origin main`，以最新 `origin/main` 建立 `codex/issue-18-worktree`；同一 owner 重跑會驗證並復用既有工作區。`status` 只讀本機 registry 與 Git worktree 狀態，不會建立 registry。`remove` 僅接受登記工作區，且要求工作樹（含 ignored 檔）乾淨、HEAD 已在最新 `origin/main`，並使用非強制的 Git worktree／branch 移除；檢查不通過時保留資料供人工處理。移除後保留 registry 記錄供查詢。若中斷在工作區／branch 移除附近，先查看 `status`，確認資料與遠端合併狀態後可重試 `remove`；無法證明安全時會拒絕操作。初版 manifest 更新非 crash-atomic，不代表支援跨程序或跨機互斥。
 
+### 固定驗證與任務工作包
+
+在工作 checkout 執行：
+
+```bash
+cargo xtask verify
+cargo xtask task prepare --issue 18 --owner codex
+```
+
+`verify` 依序執行 `cargo fmt --all --check`、workspace build、test 與 clippy；預設 fail-fast，未執行的步驟會標示 skipped，Cargo 輸出直接顯示在終端。每次執行都在主要 checkout 的 ignored `.loop/verify/` 留一份唯一 JSON，記錄工作區識別、branch、HEAD、dirty 狀態、固定參數、結果與耗時；失敗或 cargo 無法啟動也會記錄，舊結果不會被覆蓋。
+
+`task prepare` 需要本機已登記、owner 相符的 active worktree，並以 `gh issue view` 讀 issue 與依賴：issue 必須 open 且非 `blocked`／`needs-review`；AI 建立的 issue 必須有 `ready`，依賴 issue 必須已關閉。人類 issue 視同 ready。它會在 ignored `.loop/tasks/` 產生 Markdown 與 JSON 工作包，內容保留 issue 原文及工作區、owner、run-id、branch、base/head SHA，並連到共用規則與回報格式。issue 本文當作資料，不直接變成指令或 shell 參數；人為修改過的工作包不會被覆寫。此命令只準備工作包，不會呼叫或啟動 Codex、Claude、Gemini 或 Grok；worker 必須由 coordinator 手動指定並在包內 worktree 執行。
+
 ## 目錄結構
 
 ```

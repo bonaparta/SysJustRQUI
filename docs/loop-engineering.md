@@ -59,13 +59,16 @@ Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
    cargo xtask worktree create --issue 1 --owner codex
    ```
    指令只支援從主要 checkout 操作，先抓取 `origin/main`，預設在忽略的 `.loop/worktrees/` 建立 `codex/issue-1-worktree`，並在主要 checkout 的 `.loop/runs/` 留本機 registry。用 `cargo xtask worktree status --issue 1` 查看狀態；合併且確認工作樹乾淨後，用 `cargo xtask worktree remove --issue 1 --owner codex` 回收。移除會拒絕 dirty、untracked、ignored、尚未合併或 owner 不符的工作區，不會 force 清除。首次使用 worktree 命令前也可直接使用一般 Git 分支方式；跨機接手以 GitHub issue／PR／handoff 和已推送 branch 為準，這份本機 registry 不會跨機同步。
+   建好 worktree 後，以同一 owner 產生任務工作包；issue 本身須 open、非 `blocked`／`needs-review`，AI issue 須有 `ready`，每個 `depends on #N` 都須已關閉：
+   ```bash
+   cargo xtask task prepare --issue 1 --owner codex
+   ```
+   工作包只寫在忽略的 `.loop/tasks/`，並包含原始 issue 內容、assigned worktree 與驗收回報指引；準備命令不會啟動 AI。手動將工作包交給 coordinator 指定的 worker，並在包內列出的 worktree 工作。
 5. **開發與驗證**（和 CI 跑的一樣；只改 `*.md` 或 `docs/` 時 CI 會跳過編譯）：
    ```bash
-   cargo fmt --all --check
-   cargo build --workspace --all-targets
-   cargo test --workspace
-   cargo clippy --workspace --all-targets -- -D warnings
+   cargo xtask verify
    ```
+   verify 固定跑 fmt／workspace build／test／clippy，fail-fast 並明列 skipped；Cargo 輸出直接顯示。每次結果含 HEAD、branch、dirty 狀態與各步驟結果，存入主要 checkout 的 ignored `.loop/verify/` 唯一檔案。若命令啟動失敗或驗證失敗，也會保存這次結果；不以舊的成功記錄代表本次成功。
 6. **Commit、push 分支、開 PR**（一張 issue 盡量只開一個 PR，不開純驗證用的 PR。全部驗收已可由 CI／合併完成時，PR 描述可用 `Closes #N`；尚待人工驗收時用 `Refs #N`，issue 保持開啟並標為 `needs-review`）：
    ```bash
    git add <檔案>

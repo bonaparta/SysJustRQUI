@@ -50,6 +50,17 @@ struct WorktreeEntry {
     branch: Option<String>,
 }
 
+#[derive(Debug, Clone)]
+pub(crate) struct ActiveWorktree {
+    pub(crate) issue: u64,
+    pub(crate) owner: String,
+    pub(crate) run_id: String,
+    pub(crate) branch: String,
+    pub(crate) base_sha: String,
+    pub(crate) head_sha: String,
+    pub(crate) path: PathBuf,
+}
+
 pub fn run(args: Vec<String>) -> io::Result<()> {
     let operation = parse_args(args)?;
     let cwd = env::current_dir()?;
@@ -163,6 +174,10 @@ fn validate_owner(owner: &str) -> io::Result<()> {
         ));
     }
     Ok(())
+}
+
+pub(crate) fn validate_owner_name(owner: &str) -> io::Result<()> {
+    validate_owner(owner)
 }
 
 fn create(
@@ -303,6 +318,45 @@ fn status(cwd: &Path, issue: u64) -> io::Result<(Manifest, Option<String>)> {
         }
     };
     Ok((manifest, head))
+}
+
+pub(crate) fn active_worktree(cwd: &Path, issue: u64, owner: &str) -> io::Result<ActiveWorktree> {
+    validate_owner(owner)?;
+    let context = repo_context(cwd)?;
+    let manifest = read_manifest(&manifest_path(&context, issue), issue)?;
+    validate_manifest(&manifest, issue)?;
+    if manifest.owner != owner {
+        return Err(invalid(format!(
+            "issue #{issue} is assigned to {}; refusing to prepare for {owner}",
+            manifest.owner
+        )));
+    }
+    if manifest.state != "active" {
+        return Err(invalid(
+            "issue has no active worktree; create or recover the assigned worktree first",
+        ));
+    }
+    let entry = registered_entry(&context.main_root, &manifest.path, &manifest.branch)?
+        .ok_or_else(|| invalid("active manifest has no matching Git worktree"))?;
+    let head_sha = verify_registered_worktree(&manifest, &entry)?;
+    Ok(ActiveWorktree {
+        issue,
+        owner: manifest.owner,
+        run_id: manifest.run_id,
+        branch: manifest.branch,
+        base_sha: manifest.base_sha,
+        head_sha,
+        path: manifest.path,
+    })
+}
+
+pub(crate) fn local_storage_dir(cwd: &Path, area: &str) -> io::Result<PathBuf> {
+    if !matches!(area, "tasks" | "verify") {
+        return Err(invalid("unsupported local storage area"));
+    }
+    let context = repo_context(cwd)?;
+    let dot_loop = ensure_directory(&context.main_root, &context.main_root.join(".loop"))?;
+    ensure_directory(&context.main_root, &dot_loop.join(area))
 }
 
 fn remove(cwd: &Path, issue: u64, owner: &str) -> io::Result<&'static str> {
@@ -893,8 +947,8 @@ fn invalid(message: impl Into<String>) -> io::Error {
 #[cfg(test)]
 mod tests {
     use super::{
-        create, git_stdout, parse_args, remove, repo_context, status, validate_owner,
-        validate_target_path,
+        active_worktree, create, git_stdout, parse_args, remove, repo_context, status,
+        validate_owner, validate_target_path,
     };
     #[cfg(windows)]
     use std::ffi::OsString;
@@ -1070,6 +1124,21 @@ mod tests {
         let linked_context = repo_context(&linked).unwrap();
         let primary_context = repo_context(&fixture.root).unwrap();
         assert_eq!(linked_context.registry_dir, primary_context.registry_dir);
+    }
+
+    #[test]
+    fn active_worktree_returns_verified_assignment_and_rejects_other_owner() {
+        let fixture = Fixture::new();
+        let created = create(&fixture.root, 32, "Codex", Some(&fixture.worktrees)).unwrap();
+        let assigned = active_worktree(&fixture.root, 32, "Codex").unwrap();
+        assert_eq!(assigned.issue, 32);
+        assert_eq!(assigned.owner, "Codex");
+        assert_eq!(assigned.run_id, created.run_id);
+        assert_eq!(assigned.branch, created.branch);
+        assert_eq!(assigned.base_sha, created.base_sha);
+        assert_eq!(assigned.head_sha, created.head_sha.unwrap());
+        assert_eq!(assigned.path, created.path);
+        assert!(active_worktree(&fixture.root, 32, "Claude").is_err());
     }
 
     #[test]
