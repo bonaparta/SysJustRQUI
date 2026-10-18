@@ -102,6 +102,12 @@ cargo xtask task prepare --issue 18 --owner codex
 
 `task prepare` 需要本機已登記、owner 相符的 active worktree，並以 `gh issue view` 讀 issue 與依賴：issue 必須 open 且非 `blocked`／`needs-review`；AI 建立的 issue 必須有 `ready`，依賴 issue 必須已關閉。人類 issue 視同 ready。它會在 ignored `.loop/tasks/` 產生 Markdown 與 JSON 工作包，內容保留 issue 原文及工作區、owner、run-id、branch、base/head SHA，並連到共用規則與回報格式。issue 本文當作資料，不直接變成指令或 shell 參數；人為修改過的工作包不會被覆寫。此命令只準備工作包，不會呼叫或啟動 Codex、Claude、Gemini 或 Grok；worker 必須由 coordinator 手動指定並在包內 worktree 執行。
 
+### 有界 Windows worker
+
+`cargo xtask harness` 提供 Windows 本機的外部 executable worker 入口；它不會自動安裝、登入或呼叫任何 AI provider。先由 coordinator 建立 issue worktree 與工作包，再明確指定遵循工作包／結果檔協定的可執行檔。詳見 [有界 worker 操作與恢復](docs/loop-harness.md)。
+
+Windows 使用 Job Object 控制 worker 程序樹，以本機檔案鎖避免同一 run 同時啟動，並保存執行次數與恢復紀錄；無法確認舊程序已停止時拒絕重新啟動。macOS／其他平台目前不提供相同強度的原生程序樹管理，真實啟動會明確回報 `UnsupportedContainment`，跨平台測試使用 fake worker。這不代表四種 AI 已接通，也不代表 Windows 人工操作已驗收。
+
 ## 目錄結構
 
 ```
