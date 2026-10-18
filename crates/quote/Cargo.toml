@@ -1,0 +1,6 @@
+[package]
+name = "sysrqui-quote"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

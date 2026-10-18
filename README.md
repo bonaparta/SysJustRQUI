@@ -55,6 +55,21 @@ cargo run
 cargo test
 ```
 
+`cargo run` 會啟動 `crates/app`（執行檔 `sysrqui`）；`cargo test`、`cargo clippy` 涵蓋所有 crate。
+
+## 目錄結構
+
+```
+Cargo.toml        workspace 設定（成員、共用版本與依賴）
+crates/
+  app/            sysrqui：進入點，組裝視窗與模組（glue code）
+  ui/             sysrqui-ui：GPUI 共用元件與配色
+  quote/          sysrqui-quote：報價資料模型，純 Rust、不依賴 gpui
+docs/             loop engineering 流程、交接檔
+```
+
+依賴方向：`app` → `ui`、`quote`。`quote` 不依賴 gpui 與 `ui`，`ui` 也不依賴 `quote`，資料轉畫面的程式放在 `app`。之後依訂閱組裝版本時，功能模組會以 crate 的形式加進 `crates/`。
+
 ## 開發方式
 
 本專案由多個 AI agent（Claude、Codex、Gemini、Grok）與人類共同開發。
