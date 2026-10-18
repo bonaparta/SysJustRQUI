@@ -3,6 +3,8 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
+mod doctor;
+
 const GENERATED_FILES: [(&str, &str); 3] = [
     (
         "launch.json",
@@ -78,9 +80,10 @@ fn run(args: impl IntoIterator<Item = String>, root: PathBuf) -> io::Result<()> 
     let mut args = args.into_iter();
     match (args.next().as_deref(), args.next()) {
         (Some("debug-setup"), None) => generate_debug_setup(&root),
+        (Some("doctor"), None) => doctor::run(),
         _ => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "usage: cargo xtask debug-setup",
+            "usage: cargo xtask <debug-setup|doctor>",
         )),
     }
 }
