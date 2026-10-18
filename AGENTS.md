@@ -15,7 +15,7 @@
    gh issue list --state open --search "-label:ai-created"
    ```
    沒有 `ai-created` label 的 open issue 都是人類發的需求。交接檔沒提到的，就是上一手之後新發的。
-5. 先用 3 句話向使用者回報「現在做到哪、下一步是什麼」，並列出人類新發的 issue，**不要自己猜進度**。人類的 issue 和交接檔的下一步衝突時，先問使用者要先做哪個。有疑問先問，等使用者確認後再動手。
+5. 用 3 句話回報「現在做到哪、下一步是什麼」，並列出人類新發的 issue，**不要自己猜進度**。回報完**直接開工**，不必等確認：依「自主範圍」挑下一張可做的 issue，一路做到 merge。
 
 目前交接檔：`docs/handoff/handoff_20261018.md`
 
@@ -55,8 +55,34 @@ PR 規則：
 
 - **所有改動都走 PR，包括文件與交接檔**。`main` 有分支保護（ruleset `protect-main`），直接 push 會被拒絕，也沒有人可以略過。
 - 只改 `*.md` 或 `docs/` 時，CI 會跳過編譯、直接回報綠燈，PR 很快就會 merge。
-- 文件盡量併進該 issue 的 PR，不要為了小改單獨開 PR。交接檔要不要開 PR，依使用者當次指示，沒說就先問。
+- 文件盡量併進該 issue 的 PR，不要為了小改單獨開 PR。交接檔照同樣流程開 PR、auto-merge，不必先問。
 - **一張 issue 盡量只開一個 PR**：issue 與 PR 共用編號，PR 太多 issue 編號會跳很快。不要開純驗證用的 PR。
+
+## 自主範圍：什麼時候不必問
+
+人類只在 issue 這一層把關：**issue 是 `ready`，就代表目標與驗收條件已同意**，agent 從開分支到 merge、回報、寫交接檔一路做完，中間不問。
+
+| label | 意思 |
+|---|---|
+| `ready` | 可以開工。人類發的 issue 視同 `ready`；AI 開的 issue 要人類加上 `ready` 才能做 |
+| `in-progress` | 有 agent 正在做，其他 agent 不要領。開工時加上，merge 後移除 |
+| `blocked` | 在等人類回答，問題寫在 issue 留言裡 |
+| `needs-review` | 已 merge，但有自動測試驗不到的部分（例如 UI 外觀），請人類看 |
+
+相依關係在 issue 內文寫 `depends on #N`；前置 issue 沒關閉前不要開工。
+
+**不必問、直接做**：在 `ready` issue 範圍內寫程式、開分支、push 分支、開 PR、`gh pr merge --auto`、在 issue 留言回報、關閉自己完成的 issue、開 `ai-created` issue 記錄新發現的工作、寫交接檔並開 PR。
+
+**只有下列情況要停**：
+
+- 改 repo 設定、分支保護、權限、secrets。
+- 刪除資料（分支除外）、force push。
+- 規格缺漏，猜了可能白做（例如 API 網址、參數還沒給）。
+- 做到一半發現要改 issue 的範圍或驗收條件。
+
+**停的方式是非同步的，不要原地等**：在 issue 留言寫清楚問題與選項（附上推薦），加 `blocked` label，接著去做下一張 `ready` issue。人類回答後把 label 改回 `ready`。沒有其他 `ready` issue 可做時，才寫交接檔結束這一輪。
+
+選 issue 的順序：人類發的 issue 優先，再來是交接檔的下一步，同類依 issue 編號由小到大。
 
 ## 規則
 
@@ -65,7 +91,7 @@ PR 規則：
 - 一次 commit 只做一件事；不要把無關變更混進來。
 - **機密不進 repo**：token、`gitlab.token.config`、`.env` 等一律不 commit（已列在 `.gitignore`）。
 - 不要 force push、不要改寫已 push 的歷史。
-- 對外動作（留言、push、開/關 issue）要符合使用者當次的指示。
+- 對外動作在「自主範圍」內不必再問；使用者當次另有指示時，以當次指示為準。
 - 交接檔要寫清楚：做了什麼、驗證結果、卡住的地方、下一手要做什麼。
 - **Token 用量低於 10% 就交接**：工作中定期檢查剩餘的 token／context 用量。剩不到 10% 時，停下手邊工作，先寫交接檔：正在做哪一項、做到哪一步、哪些改動還沒 commit、下一步要做什麼。目的是讓下一個 AI 直接接手，不必猜進度或重新掃整個 repo。
 - **根目錄 `Readme.txt` 是使用者的個人筆記**：給人想事情、做紀錄用。AI 不要修改、不要 commit（已列在 `.gitignore`）。
