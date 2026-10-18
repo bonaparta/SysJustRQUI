@@ -77,6 +77,18 @@ cargo xtask debug-setup
 
 產生器只會建立不存在的檔案。若任一目標 JSON 已存在且內容不同，指令會列出衝突檔並停止，不改動任何目標檔；請先自行合併或移開既有設定再重跑。相同內容可安全重跑；`.vscode/` 是本機設定，不會納入版本控制。產生器不會建立 `settings.json`。
 
+### Issue worktree
+
+Loop worker 可用 `cargo xtask worktree` 在隔離目錄建立工作區。需從 repository 的主要 checkout 執行；預設工作區位於被 Git 忽略的 `.loop/worktrees/`，登記檔在 `.loop/runs/`，不會提交。`--owner` 是本次執行的短識別名稱，不是登入或鎖服務：初期採單一 coordinator 派單，跨電腦的工作狀態不會同步，接手前先查 GitHub issue、handoff 與已推送 branch。
+
+```bash
+cargo xtask worktree create --issue 18 --owner codex
+cargo xtask worktree status --issue 18
+cargo xtask worktree remove --issue 18 --owner codex
+```
+
+`create` 會先 `git fetch origin main`，以最新 `origin/main` 建立 `codex/issue-18-worktree`；同一 owner 重跑會驗證並復用既有工作區。`status` 只讀本機 registry 與 Git worktree 狀態，不會建立 registry。`remove` 僅接受登記工作區，且要求工作樹（含 ignored 檔）乾淨、HEAD 已在最新 `origin/main`，並使用非強制的 Git worktree／branch 移除；檢查不通過時保留資料供人工處理。移除後保留 registry 記錄供查詢。若中斷在工作區／branch 移除附近，先查看 `status`，確認資料與遠端合併狀態後可重試 `remove`；無法證明安全時會拒絕操作。初版 manifest 更新非 crash-atomic，不代表支援跨程序或跨機互斥。
+
 ## 目錄結構
 
 ```

@@ -4,7 +4,7 @@
 >
 > **狀態：方向已確認；部分工具與包裝細節仍為提案或待盤點**
 >
-> 本文件記錄整體方向與分階段驗收。使用者已授權 #13 批次 issue 全部開工，依賴順序由一位 coordinator 配一位 worker 執行；目前本輪實作 #15 的文件／範本工作。各 issue 以其明確範圍為準。
+> 本文件記錄整體方向與分階段驗收。使用者已授權 #13 批次 issue 全部開工，依賴順序由一位 coordinator 配一位 worker 執行。各 issue 以其明確範圍為準；目前進度讀最新 handoff 與 issue／PR 的即時狀態。
 
 | 分類 | 目前內容 |
 |---|---|
@@ -12,7 +12,9 @@
 | 提案 | GitHub Actions 負責兩平台包版及排程；以同一 main SHA 成功完成兩平台後發布 prerelease；依每日日期與 SHA 建立唯一版本標籤；Windows zip、macOS `.app` 壓縮包 |
 | 待盤點／決定 | 本機實際可用的工具與啟動配置；Windows/macOS 打包所需依賴；Mac CPU 架構、簽章／公證、Release 保留政策；daily 變更判定細節 |
 
-| 本批 issue | 目的 | 依賴 | 狀態 |
+以下是建單時的狀態快照；完成進度以最新 handoff 與 GitHub 為準。
+
+| 本批 issue | 目的 | 依賴 | 建單時狀態 |
 |---|---|---|---|
 | #13 | Loop Engineering 建置 epic | 無 | `ready`；人類已授權本批開工 |
 | #14 | 本機環境盤點與 doctor | 無 | `ready` |

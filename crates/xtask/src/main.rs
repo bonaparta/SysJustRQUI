@@ -4,6 +4,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 mod doctor;
+mod worktree;
 
 const GENERATED_FILES: [(&str, &str); 3] = [
     (
@@ -78,12 +79,15 @@ fn workspace_root() -> PathBuf {
 
 fn run(args: impl IntoIterator<Item = String>, root: PathBuf) -> io::Result<()> {
     let mut args = args.into_iter();
-    match (args.next().as_deref(), args.next()) {
-        (Some("debug-setup"), None) => generate_debug_setup(&root),
-        (Some("doctor"), None) => doctor::run(),
+    match (args.next(), args.collect::<Vec<_>>()) {
+        (Some(command), remaining) if command == "debug-setup" && remaining.is_empty() => {
+            generate_debug_setup(&root)
+        }
+        (Some(command), remaining) if command == "doctor" && remaining.is_empty() => doctor::run(),
+        (Some(command), remaining) if command == "worktree" => worktree::run(remaining),
         _ => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "usage: cargo xtask <debug-setup|doctor>",
+            "usage: cargo xtask <debug-setup|doctor|worktree>",
         )),
     }
 }

@@ -56,8 +56,9 @@ Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
    ```
 4. **開分支／worktree**（每個 issue 對應一個 owner、run-id、branch 與 worktree；位置由本機設定決定。所有改動都走 PR，包括文件與交接檔；`main` 有分支保護，直接 push 會被拒絕）：
    ```bash
-   git switch -c feat/issue-1-簡述
+   cargo xtask worktree create --issue 1 --owner codex
    ```
+   指令只支援從主要 checkout 操作，先抓取 `origin/main`，預設在忽略的 `.loop/worktrees/` 建立 `codex/issue-1-worktree`，並在主要 checkout 的 `.loop/runs/` 留本機 registry。用 `cargo xtask worktree status --issue 1` 查看狀態；合併且確認工作樹乾淨後，用 `cargo xtask worktree remove --issue 1 --owner codex` 回收。移除會拒絕 dirty、untracked、ignored、尚未合併或 owner 不符的工作區，不會 force 清除。首次使用 worktree 命令前也可直接使用一般 Git 分支方式；跨機接手以 GitHub issue／PR／handoff 和已推送 branch 為準，這份本機 registry 不會跨機同步。
 5. **開發與驗證**（和 CI 跑的一樣；只改 `*.md` 或 `docs/` 時 CI 會跳過編譯）：
    ```bash
    cargo fmt --all --check
@@ -87,6 +88,7 @@ Issue 追蹤：https://github.com/bonaparta/SysJustRQUI/issues
 
 - 機密（token、`gitlab.token.config`）不進 repo。
 - 不 force push。
+- 初期只由單一 coordinator 派單；`in-progress` label 不是跨程序或跨機原子鎖。相同 issue 的重跑先檢查 owner、manifest、worktree 與 PR，再決定復用或人工恢復，不逾時搶單。初版 registry 寫入不是 crash-atomic；工作區或 registry 不一致時保留資料並人工檢查，不強制清除。
 - AI 開 issue 一律加 `ai-created` label：
   ```bash
   gh issue create --label ai-created --title "..." --body-file <檔案>
