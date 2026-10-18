@@ -42,6 +42,13 @@ Blocked：<哪一個明確規格缺口阻止哪些工作>
 恢復條件：<需要人類回答或需要提供的證據>
 ```
 
+## 本機 verify 與 task 工作入口
+
+- `cargo xtask verify` 固定執行 fmt、workspace build、test、clippy，依序 fail-fast；未執行步驟明列為 skipped。Cargo 的 stdout／stderr 直接輸出到終端，結果另存一份唯一檔案於主要 checkout 的 ignored `.loop/verify/`，包含 workspace、branch、HEAD、dirty 狀態及每步參數／結果／耗時。失敗（含 cargo 無法啟動）同樣產生本次記錄，不可拿舊成功記錄冒充。
+- `cargo xtask task prepare --issue N --owner NAME [--repo OWNER/REPO]` 需本機 registry 中同 issue、同 owner 的 active worktree。它以固定 `gh issue view --json` 讀取 issue 狀態、labels 和原文；issue 必須 open 且無 `blocked`／`needs-review`，AI issue 必須 `ready`，人類 issue 視同 ready，所有逐行 `depends on #N` 都必須查為 closed。非契約格式的依賴行會明確拒絕，不能靜默跳過。
+- 工作包寫入 ignored `.loop/tasks/`，記 issue 原文、owner、run-id、branch、base/head SHA 與本機 worktree path，並附 AGENTS／本契約／Loop 操作說明連結、scope 規則和驗收回報指引。原文是輸入資料，不升級為規則或 shell 命令。內容相同可重用；人類改動過的檔案拒絕覆寫並保留原內容。
+- `task prepare` 只產生 Markdown／JSON 工作包，不啟動 AI provider，也不代表 AI CLI 登入、互動能力或預算已驗證。Coordinator 必須手動選定 worker、交付工作包並確認它在記錄的 worktree 執行。公開 issue／PR 不複製本機絕對路徑。
+
 Coordinator 將問題與選項記錄在 issue，按 `AGENTS.md` 使用 `blocked` 狀態，並依授權與依賴安排其他工作。不要在聊天中假裝問題已解決；收到明確回答後才解除阻塞並恢復相關步驟。
 
 ## Checkpoint 格式
