@@ -52,19 +52,19 @@ struct TaskPackage {
 }
 
 #[derive(Debug)]
-struct PackagePaths {
-    markdown: PathBuf,
-    json: PathBuf,
-    reused: bool,
+pub(crate) struct PackagePaths {
+    pub(crate) markdown: PathBuf,
+    pub(crate) json: PathBuf,
+    pub(crate) reused: bool,
 }
 
 #[derive(Debug)]
-struct CommandResult {
-    success: bool,
-    stdout: Vec<u8>,
+pub(crate) struct CommandResult {
+    pub(crate) success: bool,
+    pub(crate) stdout: Vec<u8>,
 }
 
-trait Runner {
+pub(crate) trait Runner {
     fn run(&self, program: &str, args: &[&str], cwd: &Path) -> io::Result<CommandResult>;
 }
 
@@ -182,6 +182,60 @@ fn prepare(
     runner: &impl Runner,
 ) -> io::Result<PackagePaths> {
     prepare_in_storage(root, None, assignment, owner, repository, runner)
+}
+
+#[cfg(windows)]
+pub(crate) fn prepare_for_active_worktree_with_runner(
+    root: &Path,
+    issue: u64,
+    owner: &str,
+    runner: &impl Runner,
+) -> io::Result<PackagePaths> {
+    let assignment = crate::worktree::active_worktree(root, issue, owner)?;
+    prepare(root, &assignment, owner, DEFAULT_REPOSITORY, runner)
+}
+
+#[cfg(windows)]
+pub(crate) fn validate_active_issue_with_runner(
+    root: &Path,
+    issue: u64,
+    owner: &str,
+    runner: &impl Runner,
+) -> io::Result<()> {
+    let assignment = crate::worktree::active_worktree(root, issue, owner)?;
+    validate_repository(DEFAULT_REPOSITORY)?;
+    let issue_data = fetch_issue(runner, root, DEFAULT_REPOSITORY, issue)?;
+    if !issue_data.state.eq_ignore_ascii_case("OPEN") {
+        return Err(invalid("issue is no longer open; refusing to resume"));
+    }
+    let labels = issue_data
+        .labels
+        .iter()
+        .map(|label| label.name.to_ascii_lowercase())
+        .collect::<Vec<_>>();
+    if labels.iter().any(|label| label == "blocked") {
+        return Err(invalid("issue is blocked; refusing to resume"));
+    }
+    if labels.iter().any(|label| label == "needs-review") {
+        return Err(invalid("issue needs human review; refusing to resume"));
+    }
+    if labels.iter().any(|label| label == "ai-created")
+        && !labels.iter().any(|label| label == "ready")
+    {
+        return Err(invalid("AI-created issue must have the ready label"));
+    }
+    for dependency in parse_dependencies(issue_data.body.as_deref().unwrap_or_default())? {
+        let state = fetch_issue_state(runner, root, DEFAULT_REPOSITORY, dependency)?;
+        if !state.eq_ignore_ascii_case("CLOSED") {
+            return Err(invalid(format!(
+                "dependency #{dependency} is not closed; refusing to resume"
+            )));
+        }
+    }
+    if assignment.owner != owner {
+        return Err(invalid("worktree owner does not match the requested owner"));
+    }
+    Ok(())
 }
 
 fn prepare_in_storage(

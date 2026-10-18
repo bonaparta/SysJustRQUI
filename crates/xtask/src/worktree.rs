@@ -351,7 +351,7 @@ pub(crate) fn active_worktree(cwd: &Path, issue: u64, owner: &str) -> io::Result
 }
 
 pub(crate) fn local_storage_dir(cwd: &Path, area: &str) -> io::Result<PathBuf> {
-    if !matches!(area, "tasks" | "verify") {
+    if !matches!(area, "tasks" | "verify" | "harness") {
         return Err(invalid("unsupported local storage area"));
     }
     let context = repo_context(cwd)?;

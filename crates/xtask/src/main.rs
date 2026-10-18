@@ -4,6 +4,7 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 mod doctor;
+mod harness;
 mod task;
 mod verify;
 mod worktree;
@@ -91,9 +92,10 @@ fn run(args: impl IntoIterator<Item = String>, root: PathBuf) -> io::Result<()> 
             verify::run(&root)
         }
         (Some(command), remaining) if command == "task" => task::run(remaining, &root),
+        (Some(command), remaining) if command == "harness" => harness::run(remaining, &root),
         _ => Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "usage: cargo xtask <debug-setup|doctor|worktree|verify|task>",
+            "usage: cargo xtask <debug-setup|doctor|worktree|verify|task|harness>",
         )),
     }
 }
