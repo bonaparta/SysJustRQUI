@@ -22,16 +22,38 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # main 有分支保護，文件也要走 PR，而 required checks 一定要回報。
+      # 只改文件時照樣跑這個 job（回報綠燈），但跳過下面的編譯步驟。
+      - name: 判斷是否只改文件
+        id: changes
+        shell: bash
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          code=true
+          if files=$(git diff --name-only "$BASE" "$GITHUB_SHA" 2>/dev/null) && [ -n "$files" ]; then
+            echo "$files"
+            if ! echo "$files" | grep -Ev '\.md$|^docs/' >/dev/null; then
+              code=false
+            fi
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "需要編譯：$code"
 
       - uses: dtolnay/rust-toolchain@stable
+        if: steps.changes.outputs.code == 'true'
         with:
           components: rustfmt, clippy
 
       - uses: Swatinem/rust-cache@v2
+        if: steps.changes.outputs.code == 'true'
 
       # GPUI 編譯時要用 Metal 編 shader；Xcode 26 起 Metal Toolchain 改成另外下載
       - name: 確認 Metal Toolchain（macOS）
-        if: runner.os == 'macOS'
+        if: runner.os == 'macOS' && steps.changes.outputs.code == 'true'
         run: |
           xcodebuild -version
           if ! xcrun -sdk macosx metal --version; then
@@ -40,13 +62,17 @@ jobs:
           fi
 
       - name: cargo fmt --check
+        if: steps.changes.outputs.code == 'true'
         run: cargo fmt --check
 
       - name: cargo build
+        if: steps.changes.outputs.code == 'true'
         run: cargo build --all-targets
 
       - name: cargo test
+        if: steps.changes.outputs.code == 'true'
         run: cargo test
 
       - name: cargo clippy
+        if: steps.changes.outputs.code == 'true'
         run: cargo clippy --all-targets -- -D warnings
