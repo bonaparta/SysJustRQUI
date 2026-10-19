@@ -146,7 +146,7 @@ docs/             loop engineering 流程、交接檔
 
 ## 專案狀態
 
-- 已完成：Hello 視窗；多 agent 讀 issue、開 PR、交接的流程打通；雙平台 CI、分支保護、workspace 分層與 VS Code debug 設定產生指令。
-- 待人工驗收：[#5 開發流程基礎建設](https://github.com/bonaparta/SysJustRQUI/issues/5)的 Windows／macOS VS Code 實際中斷點操作。
+- 已完成：Hello 視窗；多 agent 讀 issue、開 PR、交接的流程打通；雙平台 CI、分支保護、workspace 分層與 VS Code debug 設定產生指令；四架構每日包版；有界 worker 執行與恢復（[#19](https://github.com/bonaparta/SysJustRQUI/issues/19)，已用真實 Claude 驗收）；Windows verify 鎖檔修正（[#27](https://github.com/bonaparta/SysJustRQUI/issues/27)）。
+- Windows 已人工驗收、只差 Mac：[#5](https://github.com/bonaparta/SysJustRQUI/issues/5) VS Code 中斷點、[#18](https://github.com/bonaparta/SysJustRQUI/issues/18) 平台文字、[#11](https://github.com/bonaparta/SysJustRQUI/issues/11) 兩份 Mac ZIP 下載啟動。
 - 待審提案：[#9 Das 登入 UI 殼](https://github.com/bonaparta/SysJustRQUI/issues/9)、[#10 可拖拉分割欄框](https://github.com/bonaparta/SysJustRQUI/issues/10)，規格確認並標 `ready` 後開工。
-- 已獲批次授權：[#13 Loop Engineering](https://github.com/bonaparta/SysJustRQUI/issues/13) 下的 #14–#19 與 [#11 每日包版](https://github.com/bonaparta/SysJustRQUI/issues/11)；依賴及實際進度以 GitHub issue／PR 與最新交接檔為準，不能跳過前置工作。
+- 主 issue：[#13 Loop Engineering](https://github.com/bonaparta/SysJustRQUI/issues/13)；實際進度以 GitHub issue／PR 與最新交接檔為準。
