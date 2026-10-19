@@ -1,0 +1,173 @@
+name: Daily
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/daily.yml'
+      - 'scripts/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/**'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 7 * * *'
+      timezone: Asia/Taipei
+
+permissions:
+  contents: read
+
+# 手動與排程共用互斥群組；不取消正在上傳／發布的版本。
+concurrency:
+  group: daily-${{ github.event_name == 'pull_request' && github.ref || 'release' }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.source.outputs.sha }}
+      date: ${{ steps.source.outputs.date }}
+      build: ${{ steps.plan.outputs.build }}
+      baseline: ${{ steps.plan.outputs.baseline }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # PR 只驗證 merge ref；正式版本與手動觸發一律固定 main 快照。
+          ref: ${{ github.event_name == 'pull_request' && github.ref || 'main' }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: Python 回歸測試
+        run: python -m unittest discover -s scripts -p 'test_*.py' -v
+      - name: 固定 source SHA 與台北日期
+        id: source
+        shell: bash
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "date=$(TZ=Asia/Taipei date +%Y%m%d)" >> "$GITHUB_OUTPUT"
+      - name: 判定相對成功 daily 是否有變更
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ steps.source.outputs.sha }}
+          IS_PR: ${{ github.event_name == 'pull_request' }}
+        shell: bash
+        run: |
+          if [ "$IS_PR" = "true" ]; then
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            python scripts/daily.py plan --repo "$REPO" --sha "$SHA"
+          fi
+
+  build:
+    needs: plan
+    if: needs.plan.outputs.build == 'true'
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+            msvc: x64
+            python: x64
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            msvc: arm64
+            python: arm64
+          - os: macos-15-intel
+            target: x86_64-apple-darwin
+            python: x64
+          - os: macos-15
+            target: aarch64-apple-darwin
+            python: arm64
+    runs-on: ${{ matrix.os }}
+    env:
+      CARGO_TERM_COLOR: always
+      # Windows 不需另裝 VC redistributable；封裝時再次檢查實際 import table。
+      RUSTFLAGS: ${{ startsWith(matrix.os, 'windows') && '-C target-feature=+crt-static' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+          architecture: ${{ matrix.python }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: ${{ matrix.target }}
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+        with:
+          arch: ${{ matrix.msvc }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: daily-${{ matrix.target }}
+      - name: 確認原生 Rust host
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          rustc -vV
+          rustc -vV | grep -Fx "host: $TARGET"
+      - name: 確認 Metal Toolchain
+        if: runner.os == 'macOS'
+        run: |
+          xcodebuild -version
+          if ! xcrun -sdk macosx metal --version; then
+            xcodebuild -downloadComponent MetalToolchain
+            xcrun -sdk macosx metal --version
+          fi
+      - run: python -m unittest discover -s scripts -p 'test_*.py' -v
+      - run: cargo fmt --all --check
+      - run: cargo build --workspace --all-targets --locked --target ${{ matrix.target }}
+      - run: cargo test --workspace --locked --target ${{ matrix.target }}
+      - run: cargo clippy --workspace --all-targets --locked --target ${{ matrix.target }} -- -D warnings
+      # Windows 使用預設 PowerShell，避免 Git Bash 的 /usr/bin/link.exe 蓋過 MSVC。
+      - name: Release build
+        run: cargo build --release --locked -p sysrqui --target ${{ matrix.target }}
+      - name: 封裝與相依稽核
+        shell: bash
+        env:
+          TARGET: ${{ matrix.target }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          exe=sysrqui
+          if [ "$RUNNER_OS" = "Windows" ]; then exe=sysrqui.exe; fi
+          python scripts/daily.py package --binary "target/$TARGET/release/$exe" --target "$TARGET" --sha "$SHA" --output dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: daily-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    needs: [plan, build]
+    if: github.event_name != 'pull_request' && needs.plan.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: daily-*
+          merge-multiple: true
+          path: dist
+      - name: 全數核對後發布 prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ needs.plan.outputs.sha }}
+          DATE: ${{ needs.plan.outputs.date }}
+          BASELINE: ${{ needs.plan.outputs.baseline }}
+        run: python scripts/daily.py publish --repo "$REPO" --sha "$SHA" --date "$DATE" --baseline "$BASELINE" --directory dist
