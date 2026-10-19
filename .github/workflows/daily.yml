@@ -171,3 +171,28 @@ jobs:
           DATE: ${{ needs.plan.outputs.date }}
           BASELINE: ${{ needs.plan.outputs.baseline }}
         run: python scripts/daily.py publish --repo "$REPO" --sha "$SHA" --date "$DATE" --baseline "$BASELINE" --directory dist
+
+
+  cleanup:
+    needs: [plan, publish]
+    # 失敗／取消不清理；相同 SHA 無變更時仍可重試先前失敗的清理。
+    if: >-
+      always() && !cancelled() && github.event_name != 'pull_request' &&
+      needs.plan.result == 'success' &&
+      (needs.plan.outputs.build == 'false' || needs.publish.result == 'success')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.plan.outputs.sha }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - name: 保留最近 30 個完整每日版
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: python scripts/daily.py cleanup --repo "$REPO" --sha "$SHA"
