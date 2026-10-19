@@ -126,11 +126,9 @@ jobs:
       - run: cargo build --workspace --all-targets --locked --target ${{ matrix.target }}
       - run: cargo test --workspace --locked --target ${{ matrix.target }}
       - run: cargo clippy --workspace --all-targets --locked --target ${{ matrix.target }} -- -D warnings
+      # Windows 使用預設 PowerShell，避免 Git Bash 的 /usr/bin/link.exe 蓋過 MSVC。
       - name: Release build
-        env:
-          TARGET: ${{ matrix.target }}
-        shell: bash
-        run: cargo build --release --locked -p sysrqui --target "$TARGET"
+        run: cargo build --release --locked -p sysrqui --target ${{ matrix.target }}
       - name: 封裝與相依稽核
         shell: bash
         env:
