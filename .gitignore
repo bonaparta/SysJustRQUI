@@ -32,3 +32,6 @@ gitlab.token.config
 /Readme.txt
 /.vscode/
 /.loop/
+
+# Python packaging tools
+__pycache__/

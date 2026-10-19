@@ -108,6 +108,14 @@ cargo xtask task prepare --issue 18 --owner codex
 
 Windows 使用 Job Object 控制 worker 程序樹，以本機檔案鎖避免同一 run 同時啟動，並保存執行次數與恢復紀錄；無法確認舊程序已停止時拒絕重新啟動。macOS／其他平台目前不提供相同強度的原生程序樹管理，真實啟動會明確回報 `UnsupportedContainment`，跨平台測試使用 fake worker。這不代表四種 AI 已接通，也不代表 Windows 人工操作已驗收。
 
+### 每日試用包（#11）
+
+Daily workflow 提供 Windows x64／ARM64、macOS Intel x64／Apple Silicon arm64 四份 ZIP；固定同一 main SHA，各架構完成 workspace fmt／build／test／clippy、release build 與相依稽核後才發布 GitHub prerelease。每日台北 07:00 開始排程，亦可在 Actions → Daily 手動觸發；排程可能延遲，公開 repo 閒置 60 天後 GitHub 可能停用排程。
+
+以完整成功 daily Release 為基準；首次發布、有新 commit（包含文件）才建置，相同 SHA 跳過。失敗不推進基準；手動／排程互斥，失敗上傳保留 draft 供重試，不覆寫或刪除已發布版本。PR 先跑四架構建置與封裝但不發布。
+
+下載、版本核對、啟動、驗收與失敗恢復見 [每日包版操作](docs/daily-release.md)。Windows 使用靜態 CRT；Mac 僅 ad-hoc 簽署，未提供正式簽章／公證。產物建置成功不代表 GUI、最低 OS 或下載真機啟動已驗收。
+
 ## 目錄結構
 
 ```
