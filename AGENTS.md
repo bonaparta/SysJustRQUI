@@ -104,3 +104,4 @@ PR 規則：
 - **新工作先開 issue**：基礎建設與功能開發，先在 GitHub 開 issue 寫清楚目標與驗收條件，再開始做。
 - **AI 開的 issue 一律加 `ai-created` label**（`gh issue create --label ai-created ...`）。沒有這個 label 的 issue 視為人類發的需求。issue 作者都是同一個 GitHub 帳號，只能靠 label 區分。
 - 文件使用繁體中文。
+- **回答使用者時，用使用者提問的語言**：使用者用中文問就用繁體中文回答，包括過程中的進度回報與結論。程式碼、指令、識別名稱維持原文。
