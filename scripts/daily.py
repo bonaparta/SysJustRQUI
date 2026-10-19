@@ -260,10 +260,10 @@ def cleanup(repo, sha):
         if (not complete(latest) or latest["tag_name"] != old["tag_name"]
                 or latest["published_at"] != old["published_at"]):
             raise ValueError(f"待清理版本狀態已變更，請重新執行: {old['tag_name']}")
-        print(f"清理超過最近 {KEEP_DAILY_RELEASES} 個的每日版: {old['tag_name']}")
+        print(f"Deleting daily release beyond newest {KEEP_DAILY_RELEASES}: {old['tag_name']}")
         # 只刪 Release 與其附件，Git tag 和原始碼保留。
         gh("api", "--method", "DELETE", endpoint)
-    print(f"每日版清理完成，保留最近 {KEEP_DAILY_RELEASES} 個完整每日版")
+    print(f"Daily cleanup complete; keeping newest {KEEP_DAILY_RELEASES} complete daily releases")
 
 
 def main():
