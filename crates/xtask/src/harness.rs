@@ -382,7 +382,7 @@ fn run_once(root: &Path, args: Args) -> io::Result<()> {
     let worker = validate_worker(&args.worker)?;
     let harness_dir = crate::worktree::local_storage_dir(root, "harness")?;
     let runner = BoundedRunner {
-        directory: harness_dir,
+        directory: harness_dir.clone(),
     };
     let package = crate::task::prepare_for_active_worktree_with_runner(
         root,
@@ -404,6 +404,7 @@ fn run_once(root: &Path, args: Args) -> io::Result<()> {
         max_attempts: args.max_attempts,
         package: package.json,
     };
+    archive_previous_run(&harness_dir, config.issue, &config.run_id)?;
     create_run(root, &config)?;
     run_engine(root, &config, false, &SystemExecutor)
 }
@@ -512,6 +513,74 @@ fn create_run(root: &Path, config: &Config) -> io::Result<()> {
     serde_json::to_writer_pretty(&mut file, config).map_err(json_error)?;
     file.sync_all()?;
     Ok(())
+}
+
+/// A harness directory left by an earlier run of this issue moves to `harness/archive/` once its
+/// lock is free and no attempt is pending. The current run's directory is never moved.
+#[cfg(any(windows, test))]
+fn archive_previous_run(storage: &Path, issue: u64, run_id: &str) -> io::Result<()> {
+    let directory = storage.join(format!("issue-{issue}"));
+    let metadata = match fs::symlink_metadata(&directory) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error),
+    };
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(invalid("harness run path is not a regular directory"));
+    }
+    let paths = paths_for_directory(directory);
+    let previous: Config = read_json(&paths.config)?;
+    if previous.issue != issue {
+        return Err(invalid("harness run directory belongs to another issue"));
+    }
+    if previous.run_id == run_id {
+        return Err(invalid(
+            "run-once cannot be used after an attempt; use resume",
+        ));
+    }
+    if previous.run_id.is_empty()
+        || !previous
+            .run_id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+    {
+        return Err(invalid(
+            "previous harness run has an invalid run-id; manual review required",
+        ));
+    }
+    {
+        let lock = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .create(true)
+            .open(&paths.lock)?;
+        lock.try_lock().map_err(|_| {
+            invalid("previous harness run still holds its lock; refusing to archive it")
+        })?;
+        let _lock = RunLock(lock);
+        if read_journal(&paths.events)?.pending.is_some() {
+            return Err(invalid(
+                "previous harness run has an unfinished attempt; recover it before starting a new run",
+            ));
+        }
+    }
+    let archive = storage.join("archive");
+    match fs::symlink_metadata(&archive) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+            return Err(invalid("harness archive path is not a regular directory"));
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == io::ErrorKind::NotFound => fs::create_dir(&archive)?,
+        Err(error) => return Err(error),
+    }
+    let target = archive.join(format!("issue-{issue}-{}", previous.run_id));
+    if target.exists() {
+        return Err(invalid(
+            "archived harness run already exists; refusing to overwrite it",
+        ));
+    }
+    fs::rename(&paths.directory, target)
 }
 
 fn paths(root: &Path, issue: u64) -> io::Result<Paths> {
@@ -1677,8 +1746,8 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::{
-        Config, Event, Executor, Outcome, Paths, append_event, job_name, parse_args,
-        paths_for_directory, pull_request_predates_run, read_journal, run_engine_paths,
+        Config, Event, Executor, Outcome, Paths, append_event, archive_previous_run, job_name,
+        parse_args, paths_for_directory, pull_request_predates_run, read_journal, run_engine_paths,
         validate_result,
     };
     use std::cell::RefCell;
@@ -1905,6 +1974,63 @@ mod tests {
         assert_eq!(&*executor.calls.borrow(), &[1]);
         assert_eq!(fs::read_to_string(dirty).unwrap(), "preserve me\n");
         assert!(read_journal(&paths.events).unwrap().completed);
+    }
+
+    fn previous_run(storage: &Path, finished: bool) -> PathBuf {
+        let directory = storage.join("issue-19");
+        fs::create_dir_all(&directory).unwrap();
+        let paths = paths_for_directory(directory.clone());
+        fs::write(&paths.config, serde_json::to_vec(&config(storage)).unwrap()).unwrap();
+        append_event(
+            &paths.events,
+            &Event::Starting {
+                attempt: 1,
+                job_name: "job".into(),
+            },
+        )
+        .unwrap();
+        if finished {
+            append_event(
+                &paths.events,
+                &Event::Finished {
+                    attempt: 1,
+                    outcome: Outcome::Cancelled,
+                    exit_code: Some(1),
+                },
+            )
+            .unwrap();
+        }
+        directory
+    }
+
+    #[test]
+    fn new_run_archives_a_finished_previous_run() {
+        let temp = TempDir::new();
+        assert!(archive_previous_run(&temp.0, 19, "19-new").is_ok());
+        let directory = previous_run(&temp.0, true);
+        archive_previous_run(&temp.0, 19, "19-new").unwrap();
+        assert!(!directory.exists());
+        let archived = temp.0.join("archive").join("issue-19-19-run");
+        assert!(archived.join("config.json").exists());
+        assert!(archived.join("events.jsonl").exists());
+    }
+
+    #[test]
+    fn new_run_keeps_a_previous_run_that_is_current_pending_or_colliding() {
+        let temp = TempDir::new();
+        let directory = previous_run(&temp.0, true);
+        assert!(archive_previous_run(&temp.0, 19, "19-run").is_err());
+        let archived = temp.0.join("archive").join("issue-19-19-run");
+        fs::create_dir_all(&archived).unwrap();
+        assert!(archive_previous_run(&temp.0, 19, "19-new").is_err());
+        fs::remove_dir(&archived).unwrap();
+        fs::remove_dir_all(&directory).unwrap();
+
+        let directory = previous_run(&temp.0, false);
+        let error = archive_previous_run(&temp.0, 19, "19-new").unwrap_err();
+        assert!(error.to_string().contains("unfinished attempt"));
+        assert!(directory.join("config.json").exists());
+        assert!(!archived.exists());
     }
 
     #[test]
