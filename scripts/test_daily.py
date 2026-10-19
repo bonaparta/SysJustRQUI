@@ -57,6 +57,9 @@ class DailyTests(unittest.TestCase):
                     daily.inspect_binary(binary, opposite)
 
     def test_windows_dynamic_crt_refused(self):
+        with patch("daily.run", return_value="    bcryptprimitives.dll\n    icuuc.dll\n"):
+            info = daily.dependencies(Path("app.exe"), "aarch64-pc-windows-msvc")
+            self.assertEqual(info["imports"], ["bcryptprimitives.dll", "icuuc.dll"])
         with patch("daily.run", return_value="    KERNEL32.dll\n    VCRUNTIME140.dll\n"):
             with self.assertRaisesRegex(ValueError, "非系統 DLL"):
                 daily.dependencies(Path("app.exe"), "x86_64-pc-windows-msvc")

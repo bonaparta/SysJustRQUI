@@ -96,7 +96,7 @@ def dependencies(binary, target):
         system = {"kernel32.dll", "user32.dll", "gdi32.dll", "gdi32full.dll",
                   "advapi32.dll", "shell32.dll", "ole32.dll", "oleaut32.dll",
                   "comdlg32.dll", "comctl32.dll", "shlwapi.dll", "crypt32.dll",
-                  "bcrypt.dll", "ncrypt.dll", "ws2_32.dll", "ntdll.dll",
+                  "bcrypt.dll", "ncrypt.dll", "ws2_32.dll", "ntdll.dll", "bcryptprimitives.dll", "icuuc.dll",
                   "dwrite.dll", "d2d1.dll", "d3d11.dll", "dxgi.dll", "dcomp.dll",
                   "dwmapi.dll", "imm32.dll", "uxtheme.dll", "version.dll",
                   "propsys.dll", "winmm.dll", "secur32.dll", "winhttp.dll",

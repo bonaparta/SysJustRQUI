@@ -38,3 +38,5 @@ Windows 未正式簽章；macOS 僅 ad-hoc，沒有 Developer ID 簽章或公證
 
 - [GitHub 原生 runner 清單](https://docs.github.com/en/actions/reference/runners/github-hosted-runners)：windows-2025、windows-11-arm、macos-15-intel、macos-15（arm64）；workflow 另核對 rustc host，不能靠標籤假定。
 - [排程與時區](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)：使用 cron 0 7 * * * 與 Asia/Taipei。
+
+- [Microsoft ICU 系統程式庫](https://learn.microsoft.com/en-us/windows/win32/intl/international-components-for-unicode--icu-)及 [ProcessPrng／BCryptPrimitives](https://learn.microsoft.com/en-us/windows/win32/seccng/processprng)：Windows release 實際 imports 包含 icuuc.dll、bcryptprimitives.dll，歸類為系統 DLL；這項元件依據不等於整個 app 的最低 OS 真機保證。
