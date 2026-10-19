@@ -3,7 +3,7 @@ from pathlib import Path
 import struct
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import daily
 
@@ -109,6 +109,89 @@ class DailyTests(unittest.TestCase):
                 daily.publish("o/r", SHA, "20261019", directory, "")
                 self.assertFalse(any(c.args[:2] == ("release", "create") for c in remote.call_args_list))
                 self.assertEqual(sum("--draft=false" in c.args for c in remote.call_args_list), 1)
+
+
+    def test_zip_size_boundary_and_oversize_before_any_network(self):
+        fake = Mock(name="archive.zip")
+        fake.stat.return_value.st_size = 50 * 1024 * 1024
+        daily.check_zip_size(fake)
+        fake.stat.return_value.st_size += 1
+        with self.assertRaisesRegex(ValueError, "50 MiB"):
+            daily.check_zip_size(fake)
+        with tempfile.TemporaryDirectory() as temp:
+            directory = Path(temp)
+            self.assets(directory)
+            # 實際檔案上限調小，驗證 publish 在任何網路存取前拒絕超標。
+            with patch("daily.MAX_ZIP_BYTES", 1), patch("daily.gh") as remote:
+                with self.assertRaisesRegex(ValueError, "50 MiB"):
+                    daily.publish("o/r", SHA, "20261019", directory, "")
+                remote.assert_not_called()
+
+    def test_package_rejects_oversize_before_writing_manifest(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            binary = root / "app.exe"
+            binary.write_bytes(b"fake binary")
+            out = root / "dist"
+            with patch("daily.inspect_binary"), patch("daily.dependencies", return_value={}), patch("daily.MAX_ZIP_BYTES", 1):
+                with self.assertRaisesRegex(ValueError, "50 MiB"):
+                    daily.package(binary, "x86_64-pc-windows-msvc", SHA, out)
+            self.assertFalse(list(out.glob("*.json")))
+            self.assertFalse(list(out.glob("*.sha256")))
+
+    def history(self):
+        rows = []
+        for i in range(35):
+            row = release(f"{i:040x}")
+            row.update(id=i + 1, published_at=f"2026-10-19T00:00:{i // 2:02d}Z")
+            rows.append(row)
+        return rows
+
+    def test_cleanup_keeps_latest_30_and_protects_other_releases(self):
+        history = self.history()
+        protected = [release(SHA), release(OTHER, draft=True), release("c" * 40), release("d" * 40)]
+        protected[0]["prerelease"] = False
+        protected[2]["tag_name"] = "v1.0.0"
+        protected[3]["assets"].pop()
+        rows = {f"repos/o/r/releases/{r['id']}": r for r in history}
+        def api(*args):
+            return json.dumps(rows[args[1]]) if len(args) == 2 else ""
+        with patch("daily.releases", return_value=history + protected), patch("daily.gh", side_effect=api) as remote:
+            daily.cleanup("o/r", f"{34:040x}")
+            deleted = [c.args for c in remote.call_args_list if "DELETE" in c.args]
+            self.assertEqual(deleted, [("api", "--method", "DELETE", f"repos/o/r/releases/{i}") for i in range(5, 0, -1)])
+
+    def test_no_cleanup_until_source_is_published(self):
+        with patch("daily.releases", return_value=[release(draft=True)]), patch("daily.gh") as remote:
+            with self.assertRaisesRegex(ValueError, "尚未完整發布"):
+                daily.cleanup("o/r", SHA)
+            remote.assert_not_called()
+
+    def test_cleanup_rechecks_before_delete(self):
+        history = self.history()
+        changed = dict(history[4], prerelease=False)
+        with patch("daily.releases", return_value=history), patch("daily.gh", return_value=json.dumps(changed)) as remote:
+            with self.assertRaisesRegex(ValueError, "狀態已變更"):
+                daily.cleanup("o/r", f"{34:040x}")
+            self.assertFalse(any("DELETE" in c.args for c in remote.call_args_list))
+
+    def test_cleanup_failure_retries_without_republishing(self):
+        history = self.history()[-31:]
+        old = history[0]
+        def fail_delete(*args):
+            if "DELETE" in args:
+                raise RuntimeError("delete failed")
+            return json.dumps(old)
+        with patch("daily.releases", return_value=history), patch("daily.gh", side_effect=fail_delete):
+            with self.assertRaisesRegex(RuntimeError, "delete failed"):
+                daily.cleanup("o/r", f"{34:040x}")
+        with patch("daily.releases", return_value=history), patch("daily.gh", return_value=json.dumps(old)) as remote:
+            daily.cleanup("o/r", f"{34:040x}")
+            self.assertEqual(sum("DELETE" in c.args for c in remote.call_args_list), 1)
+            self.assertFalse(any("release" in c.args for c in remote.call_args_list))
+        with patch("daily.releases", return_value=history[1:]), patch("daily.gh") as remote:
+            daily.cleanup("o/r", f"{34:040x}")
+            remote.assert_not_called()
 
 
 if __name__ == "__main__":

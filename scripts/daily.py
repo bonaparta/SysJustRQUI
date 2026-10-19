@@ -21,6 +21,8 @@ TARGETS = {
     "x86_64-apple-darwin": ("macos-intel-x64", 0x01000007),
     "aarch64-apple-darwin": ("macos-apple-silicon-arm64", 0x0100000C),
 }
+MAX_ZIP_BYTES = 50 * 1024 * 1024
+KEEP_DAILY_RELEASES = 30
 SHA = re.compile(r"[0-9a-f]{40}")
 TAG = re.compile(r"daily-(\d{8})-([0-9a-f]{40})")
 
@@ -31,6 +33,12 @@ def run(*args):
 
 def gh(*args):
     return run("gh", *args)
+
+
+def check_zip_size(path):
+    size = path.stat().st_size
+    if size > MAX_ZIP_BYTES:
+        raise ValueError(f"ZIP 超過 50 MiB 上限: {path.name} ({size} bytes)")
 
 
 def digest(path):
@@ -170,6 +178,7 @@ def package(binary, target, sha, output):
                     entry.create_system = 3
                     entry.external_attr = (stat.S_IFREG | (0o755 if file.name == "sysrqui" else 0o644)) << 16
                     archive.writestr(entry, file.read_bytes(), compress_type=zipfile.ZIP_DEFLATED)
+    check_zip_size(paths[0])
     metadata.update({"archive": paths[0].name, "sha256": digest(paths[0])})
     paths[1].write_text(json.dumps(metadata, ensure_ascii=False, indent=2), encoding="utf-8")
     paths[2].write_text(f"{metadata['sha256']}  {paths[0].name}\n", encoding="ascii")
@@ -182,6 +191,7 @@ def validate_assets(directory, sha):
     for target in TARGETS:
         name = names(sha, target)
         meta = json.loads((directory / (name + ".json")).read_text(encoding="utf-8"))
+        check_zip_size(directory / (name + ".zip"))
         checksum = digest(directory / (name + ".zip"))
         if meta["sha"] != sha or meta["target"] != target or meta["sha256"] != checksum:
             raise ValueError("manifest SHA／target／checksum 不一致")
@@ -223,7 +233,7 @@ def publish(repo, sha, date, directory, baseline):
                "--prerelease", "--title", f"SysRQUI daily {date} {sha[:12]}", "--notes-file", str(body))
         else:
             gh("release", "edit", tag, "--repo", repo, "--notes-file", str(body))
-        # 僅覆寫失敗嘗試的 draft assets；已發布版本永不覆寫或刪除。
+        # 僅覆寫失敗嘗試的 draft assets；歷史清理由獨立 cleanup 階段處理。
         gh("release", "upload", tag, *[str(p) for p in sorted(directory.iterdir())],
            "--repo", repo, "--clobber")
         remote = next(r for r in releases(repo) if r["tag_name"] == tag)
@@ -236,10 +246,33 @@ def publish(repo, sha, date, directory, baseline):
         gh("release", "edit", tag, "--repo", repo, "--draft=false", "--prerelease", "--latest=false")
 
 
+def cleanup(repo, sha):
+    current = releases(repo)
+    # 防止發布失敗時誤呼叫清理；無變更重跑也必須有此 SHA 的成功版本。
+    if plan(sha, current)["build"]:
+        raise ValueError("source SHA 尚未完整發布，不可清理歷史")
+    successful = sorted((r for r in current if complete(r)),
+                        key=lambda r: (r["published_at"], r["id"]), reverse=True)
+    for old in successful[KEEP_DAILY_RELEASES:]:
+        endpoint = f"repos/{repo}/releases/{old['id']}"
+        latest = json.loads(gh("api", endpoint))
+        # 刪除前重新核對：人工改為正式版／draft 或改名後不再屬於授權範圍。
+        if (not complete(latest) or latest["tag_name"] != old["tag_name"]
+                or latest["published_at"] != old["published_at"]):
+            raise ValueError(f"待清理版本狀態已變更，請重新執行: {old['tag_name']}")
+        print(f"Deleting daily release beyond newest {KEEP_DAILY_RELEASES}: {old['tag_name']}")
+        # 只刪 Release 與其附件，Git tag 和原始碼保留。
+        gh("api", "--method", "DELETE", endpoint)
+    print(f"Daily cleanup complete; keeping newest {KEEP_DAILY_RELEASES} complete daily releases")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("plan")
+    p.add_argument("--repo", required=True)
+    p.add_argument("--sha", required=True)
+    p = sub.add_parser("cleanup")
     p.add_argument("--repo", required=True)
     p.add_argument("--sha", required=True)
     p = sub.add_parser("package")
@@ -260,6 +293,8 @@ def main():
             with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
                 for key, value in result.items():
                     output.write(f"{key}={str(value).lower() if isinstance(value, bool) else value}\n")
+    elif args.command == "cleanup":
+        cleanup(args.repo, args.sha)
     elif args.command == "package":
         package(args.binary, args.target, args.sha, args.output)
     else:

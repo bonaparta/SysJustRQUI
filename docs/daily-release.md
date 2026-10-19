@@ -2,7 +2,7 @@
 
 ## 已確認範圍
 
-人類於 2026-10-19 確認四份產物：Windows x64、Windows ARM64、macOS Intel x64、macOS Apple Silicon arm64。先前 CPU 待決已解除；不得自行減為兩份。以同一 main SHA 完成全部 target 檢查與封裝才發布 prerelease；每天台北 07:00 開始，包含週末。沒有變更就跳過，文件 commit 也算變更。保留歷史，不新增 secrets。
+人類於 2026-10-19 確認四份產物：Windows x64、Windows ARM64、macOS Intel x64、macOS Apple Silicon arm64。先前 CPU 待決已解除；不得自行減為兩份。以同一 main SHA 完成全部 target 檢查與封裝才發布 prerelease；每天台北 07:00 開始，包含週末。沒有變更就跳過，文件 commit 也算變更。依 #30 授權保留最近 30 個完整每日版，正式版保留；不新增 secrets。
 
 ## 操作
 
@@ -11,6 +11,15 @@
 3. 四個原生 runner 分別驗證 Rust host、fmt、workspace build／test／clippy、release build。macOS 缺 Metal Toolchain 時下載，不能用 runtime_shaders 繞過。Windows 靜態 CRT 避免外部 VC runtime。
 4. 封裝驗證實際 PE／Mach-O 架構，檢查 import dependencies。非系統 DLL／dylib 未封裝就拒絕產出。Mac 讀取 Mach-O 最低 deployment target，建立 .app 與 Info.plist，再 ad-hoc 簽署並驗證。
 5. 產物上傳為 Actions artifacts，保留 14 天；正式 publisher 僅在全部 target 成功後下載，核對四份來源 SHA、target 與 SHA256。先建 draft、上傳全部檔案、核對遠端完整後才公開 prerelease。已公開相同 SHA 跳過，不受日期改變影響。
+
+## 容量與保留政策（#30）
+
+使用者於 2026-10-19 授權取代原先全部歷史保留政策：
+
+- 每份 ZIP 最大 50 MiB（52,428,800 bytes，等於上限可接受）；封裝後及發布前都檢查，超標即停止，不公開新版本或清理歷史。四份 ZIP 合計最多 200 MiB，另加小型 manifest／checksum。
+- 新版本完整發布成功後，依 published_at（相同時間以 Release ID 排序）保留最新 30 個完整 daily prerelease，刪除更舊的每日 Release 與附件。只匹配 daily-YYYYMMDD-完整 SHA 且四架構 12 個必要附件齊全的 prerelease；刪除前再次讀取核對狀態。
+- 正式版、其他 tag、draft、不完整 Release 均保留。Git tags、原始碼及 Actions artifacts 不在清理範圍；因此 30 版是成功每日版數量上限，不是整個 repository 的總容量上限。
+- 建置／上傳／發布失敗或取消不清理。清理失敗使 Actions 失敗，但已成功公開的新版本保留；手動重跑相同 SHA 會跳過 build／publish 並重試 cleanup。清理入口也會核對此 SHA 已完整發布。
 
 ## 下載與回報
 
@@ -23,16 +32,16 @@ Windows 未正式簽章；macOS 僅 ad-hoc，沒有 Developer ID 簽章或公證
 ## 失敗與重跑
 
 - 任一 target 失敗：不發布、不推進成功基準；查看失敗 job，修復經 PR 合併後再手動執行。不得為了綠燈刪掉某個架構。
-- 上傳中斷：保留 draft。相同日期與 SHA 重跑可補齊該 draft，不刪歷史；若變成隔日的新 tag，舊 draft 也保留。不完整的同名非 draft 版本拒絕覆寫，需先調查。
+- 上傳中斷：保留 draft。相同日期與 SHA 重跑可補齊該 draft，不清理歷史；若變成隔日的新 tag，舊 draft 也保留。不完整的同名非 draft 版本拒絕覆寫，需先調查。
 - 手動和排程共用 daily-release concurrency 群組，cancel-in-progress=false；GitHub 可能替換 pending run，但不會中止正在發布的 run。
 - 手動開始後 main 更新：本次仍使用 plan 固定的 SHA，新 commit 留到下一輪。
 - GitHub 排程可能延遲／被丟棄；公開 repo 閒置 60 天後可能停用。07:00 是開始時間，不保證可下載時間。
 
 ## 工具與驗證
 
-`python -m unittest discover -s scripts -p 'test_*.py' -v` 測試首次發布、無變更／重複跳過、不完整發布不推進基準、架構不符、非系統相依拒絕、損毀 checksum、上傳失敗與 draft 恢復。測試用 fake 資料，不觸發真實 Release。
+`python -m unittest discover -s scripts -p 'test_*.py' -v` 測試首次發布、無變更／重複跳過、不完整發布不推進基準、架構不符、非系統相依拒絕、損毀 checksum、上傳失敗與 draft 恢復。另測試 50 MiB 邊界、超標拒絕、保留 30 版與正式版／draft／缺檔保護、清理失敗重試。測試用 fake 資料，不建立或刪除真實 Release。
 
-`scripts/daily.py package` 是 CI 在檢查通過後使用的入口，不會自行執行 Cargo；不得把手動呼叫封裝視為 workspace 已驗證。`publish` 需要標準 GITHUB_TOKEN 的 contents:write，其他 job 唯讀；不需新增 secret 或變更 repo 設定。
+`scripts/daily.py package` 是 CI 在檢查通過後使用的入口，不會自行執行 Cargo；不得把手動呼叫封裝視為 workspace 已驗證。`publish` 需要標準 GITHUB_TOKEN 的 contents:write，`cleanup` 也使用 contents:write，其餘 job 唯讀；不需新增 secret 或變更 repo 設定。
 
 ## 官方依據
 
