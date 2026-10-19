@@ -936,6 +936,13 @@ fn checkpoint(
     }
 }
 
+/// A PR that is no longer open and whose head is already in the run's base was finished
+/// before this run started; anything else may belong to this run and blocks resume.
+#[cfg(any(windows, test))]
+fn pull_request_predates_run(state: &str, head_in_base: bool) -> bool {
+    !state.eq_ignore_ascii_case("OPEN") && head_in_base
+}
+
 fn git_text(directory: &Path, cwd: &Path, args: &[&str]) -> Option<String> {
     bounded_output("git", args, cwd, directory)
         .ok()
@@ -1013,7 +1020,7 @@ fn reconcile(config: &Config, paths: &Paths) -> io::Result<()> {
         "--state",
         "all",
         "--json",
-        "number,state,url,statusCheckRollup",
+        "number,state,url,headRefOid,statusCheckRollup",
     ];
     let prs = bounded_output("gh", &prs_args, &config.worktree, &paths.directory)?;
     if !prs.success {
@@ -1050,7 +1057,20 @@ fn reconcile(config: &Config, paths: &Paths) -> io::Result<()> {
         remote_checkpoint.checks = "no PR checks queried".to_owned();
     }
     append_checkpoint(&paths.events, remote_checkpoint)?;
-    if !prs_json.is_empty() {
+    // The branch name is fixed per issue, so a PR merged by an earlier run can share it.
+    let blocks_resume = prs_json.iter().any(|pr| {
+        let head = pr["headRefOid"].as_str().unwrap_or_default();
+        let head_in_base = !head.is_empty()
+            && bounded_output(
+                "git",
+                &["merge-base", "--is-ancestor", head, &config.base_sha],
+                &config.worktree,
+                &paths.directory,
+            )
+            .is_ok_and(|output| output.success);
+        !pull_request_predates_run(pr["state"].as_str().unwrap_or_default(), head_in_base)
+    });
+    if blocks_resume {
         append_checkpoint(
             &paths.events,
             checkpoint(
@@ -1658,7 +1678,8 @@ fn main() {
 mod tests {
     use super::{
         Config, Event, Executor, Outcome, Paths, append_event, job_name, parse_args,
-        paths_for_directory, read_journal, run_engine_paths, validate_result,
+        paths_for_directory, pull_request_predates_run, read_journal, run_engine_paths,
+        validate_result,
     };
     use std::cell::RefCell;
     use std::fs::{self, File};
@@ -1884,6 +1905,16 @@ mod tests {
         assert_eq!(&*executor.calls.borrow(), &[1]);
         assert_eq!(fs::read_to_string(dirty).unwrap(), "preserve me\n");
         assert!(read_journal(&paths.events).unwrap().completed);
+    }
+
+    #[test]
+    fn only_finished_pull_requests_already_in_base_allow_resume() {
+        assert!(pull_request_predates_run("MERGED", true));
+        assert!(pull_request_predates_run("CLOSED", true));
+        assert!(!pull_request_predates_run("OPEN", true));
+        assert!(!pull_request_predates_run("MERGED", false));
+        assert!(!pull_request_predates_run("CLOSED", false));
+        assert!(!pull_request_predates_run("", false));
     }
 
     #[test]

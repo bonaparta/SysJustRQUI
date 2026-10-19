@@ -49,7 +49,7 @@ cargo xtask harness resume --issue 19 --owner Codex --worker C:\tools\loop-worke
 
 `timeout-secs` 與 `max-attempts` 都必須明確提供；最多 10 次、所有 attempt 的 worker 時間預算合計最多 3600 秒，不在 resume 重設額度。程序清理另有短時限；逾時、取消、失敗、阻塞或額度耗盡會回傳非零，不把停止當成成功完成。
 
-`resume` 必須使用原有 owner、worker 與限制，沿用原工作區與 run-id，已消耗的 attempt 不歸零。它先確認程序停止與本機／遠端狀態，不因 PID 不存在、label 逾時或網路錯誤就搶單；有未提交／未推送變更時保留資料，不執行 reset／clean。完成或額度耗盡的 run 不會再次啟動 worker。
+`resume` 必須使用原有 owner、worker 與限制，沿用原工作區與 run-id，已消耗的 attempt 不歸零。它先確認程序停止與本機／遠端狀態，不因 PID 不存在、label 逾時或網路錯誤就搶單；有未提交／未推送變更時保留資料，不執行 reset／clean。完成或額度耗盡的 run 不會再次啟動 worker。每個 issue 的 branch 名稱固定；若同名 branch 上有先前 run 已合併或關閉、且 head 已包含在本 run base 的 PR，視為較早的工作，不阻擋恢復；仍為 open 或 head 不在 base 的 PR 一律停止，交給 coordinator 處理。
 
 `cancel` 是冪等請求，回報「已提出」不代表 worker 已停止。明確執行 `resume` 會確認取消標記移轉當下已存在的請求；coordinator 不應並行執行相反的 cancel／resume 操作。若要取消已恢復的執行，請在 resume 的確認階段之後重新提出取消，不能假設重疊的 cancel 一定優先。
 
