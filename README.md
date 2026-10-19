@@ -102,7 +102,7 @@ cargo xtask task prepare --issue 18 --owner codex
 
 `verify` 依序執行 `cargo fmt --all --check`、workspace build、test 與 clippy；預設 fail-fast，未執行的步驟會標示 skipped，Cargo 輸出直接顯示在終端。每次執行都在主要 checkout 的 ignored `.loop/verify/` 留一份唯一 JSON，記錄工作區識別、branch、HEAD、dirty 狀態、固定參數、結果與耗時；失敗或 cargo 無法啟動也會記錄，舊結果不會被覆蓋。
 
-Windows 有 [#27：verify 重建自身執行檔的鎖檔問題](https://github.com/bonaparta/SysJustRQUI/issues/27)，尚未修復；首次驗證請改用 [新電腦開工的四條 workspace 指令](docs/new-computer.md#4-建置與完整驗證)，並逐條確認成功，不能把鎖檔失敗當成通過。
+Windows 的 `verify` 會將子 Cargo 的產物與中間建置檔放到主要 checkout 的 ignored `.loop/verify-build/`，避免 workspace build 覆寫正在執行的 xtask（[#27](https://github.com/bonaparta/SysJustRQUI/issues/27)）。若檢查器本身來自該目錄，改用 `.loop/verify-build-fallback/`；快取可重用，首次需額外編譯與磁碟空間。終端與 JSON 的 `cargo_target_dir` 會記錄本次目錄，不修改使用者全域設定；macOS 沿用原有 Cargo 設定。也可逐條執行 [四條 workspace 指令](docs/new-computer.md#4-建置與完整驗證)。
 
 `task prepare` 需要本機已登記、owner 相符的 active worktree，並以 `gh issue view` 讀 issue 與依賴：issue 必須 open 且非 `blocked`／`needs-review`；AI 建立的 issue 必須有 `ready`，依賴 issue 必須已關閉。人類 issue 視同 ready。它會在 ignored `.loop/tasks/` 產生 Markdown 與 JSON 工作包，內容保留 issue 原文及工作區、owner、run-id、branch、base/head SHA，並連到共用規則與回報格式。issue 本文當作資料，不直接變成指令或 shell 參數；人為修改過的工作包不會被覆寫。此命令只準備工作包，不會呼叫或啟動 Codex、Claude、Gemini 或 Grok；worker 必須由 coordinator 手動指定並在包內 worktree 執行。
 

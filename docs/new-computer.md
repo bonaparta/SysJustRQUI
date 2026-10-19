@@ -100,7 +100,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 
 預期 fmt 沒有格式差異、build 成功、所有 workspace 測試無失敗、clippy 無警告。這些指令涵蓋 xtask；單跑 `cargo build` 只涵蓋 default-members，不能替代 workspace 檢查。首次下載相依與編譯可能較久，需能存取 Cargo registry／相依來源。
 
-`cargo xtask verify` 原本會依序執行同樣四步並留下 JSON，但 Windows 有 [#27 的自身執行檔鎖衝突](https://github.com/bonaparta/SysJustRQUI/issues/27)，目前未修復；新電腦先用上面四條命令。手動執行不會產生 verify JSON，請記錄各步結束碼及 commit SHA，失敗後未執行的項目明寫「未執行」。macOS 可用 `cargo xtask verify`，其紀錄與限制見 [README](../README.md#固定驗證與任務工作包)。
+也可用 `cargo xtask verify` 依序執行同樣四步並留下 JSON；Windows 會使用獨立的建置快取，避免 [#27 的自身執行檔鎖衝突](https://github.com/bonaparta/SysJustRQUI/issues/27)，首次需額外編譯與磁碟空間。不要同時執行多個驗證或手動啟動驗證快取內的產物。若使用尚未包含 #27 修正的舊版本，Windows 先用上面四條命令；手動執行不會產生 verify JSON，請記錄各步結束碼及 commit SHA，失敗後未執行的項目明寫「未執行」。紀錄與快取位置見 [README](../README.md#固定驗證與任務工作包)。
 
 ## 5. 啟動與除錯
 
@@ -119,7 +119,7 @@ cargo run
 | 找不到 `gh`／`cargo` 等命令 | 確認安裝目錄在 PATH，重開終端機；不要只因工具裝過就略過版本檢查。 |
 | Windows 缺 linker、SDK，或 `link.exe` 出現 coreutils 錯誤 | 核對 C++ 工作負載與本機架構工具；在 Developer PowerShell 執行 `where.exe link`，排除 Git Bash 的 `usr/bin/link.exe`。 |
 | macOS 缺 Metal Toolchain | 回到平台安裝步驟，確認目前選用的完整 Xcode 與 `metal --version`；不要用 runtime_shaders 繞過。 |
-| Windows verify 出現無法覆寫 xtask.exe／Access denied | 先關閉自己啟動且仍在執行的 xtask，改跑第 4 節四條指令；保留 #27 未修復的紀錄。 |
+| Windows verify 出現無法覆寫 xtask.exe／Access denied | 核對是否為包含 #27 修正的版本，及錯誤路徑是否有其他程序使用；只關閉自己啟動且已確認的程序，保留錯誤，必要時改跑第 4 節四條指令。 |
 | build 通過，但沒有視窗或發生 GPU 錯誤 | 保存原始錯誤、OS／CPU／GPU、commit SHA 與啟動方式，回報 issue；不能以 CI 成功推定 GUI 已驗收。 |
 | GitHub 認證或 push 失敗 | 由使用者檢查 gh 登入帳號、repo 權限與 Git 的認證設定；保留錯誤訊息，回報前移除憑證。 |
 

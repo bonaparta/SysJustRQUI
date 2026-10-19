@@ -36,17 +36,61 @@ trait Runner {
     fn run(&self, program: &str, args: &[&str], cwd: &Path) -> io::Result<CommandResult>;
 }
 
-struct SystemRunner;
+struct SystemRunner {
+    cargo_target_dir: Option<PathBuf>,
+}
+
+impl SystemRunner {
+    fn new(_root: &Path) -> io::Result<Self> {
+        #[cfg(windows)]
+        let cargo_target_dir = {
+            let primary = crate::worktree::local_storage_dir(_root, "verify-build")?;
+            let fallback = crate::worktree::local_storage_dir(_root, "verify-build-fallback")?;
+            Some(select_build_directory(
+                &std::env::current_exe()?.canonicalize()?,
+                &primary.canonicalize()?,
+                &fallback.canonicalize()?,
+            )?)
+        };
+        #[cfg(not(windows))]
+        let cargo_target_dir = None;
+        Ok(Self { cargo_target_dir })
+    }
+}
+
+/// A verifier launched from a previous verification build must also avoid itself.
+#[cfg(any(windows, test))]
+fn select_build_directory(
+    executable: &Path,
+    primary: &Path,
+    fallback: &Path,
+) -> io::Result<PathBuf> {
+    [primary, fallback]
+        .into_iter()
+        .find(|directory| !executable.starts_with(directory))
+        .map(Path::to_path_buf)
+        .ok_or_else(|| {
+            io::Error::other("verification build directories contain the running executable")
+        })
+}
 
 impl Runner for SystemRunner {
     fn run(&self, program: &str, args: &[&str], cwd: &Path) -> io::Result<CommandResult> {
         if program == "cargo" {
-            let status = Command::new(program)
+            let mut command = Command::new(program);
+            command
                 .args(args)
                 .current_dir(cwd)
                 .stdout(Stdio::inherit())
-                .stderr(Stdio::inherit())
-                .status()?;
+                .stderr(Stdio::inherit());
+            if let Some(directory) = &self.cargo_target_dir {
+                // Keep both final artifacts and intermediate outputs away from the
+                // running Windows image, including explicit build-dir overrides.
+                command
+                    .env("CARGO_TARGET_DIR", directory)
+                    .env("CARGO_BUILD_BUILD_DIR", directory);
+            }
+            let status = command.status()?;
             return Ok(CommandResult {
                 success: status.success(),
                 exit_code: status.code(),
@@ -69,6 +113,7 @@ struct VerificationRecord {
     branch: String,
     head_sha: String,
     dirty: bool,
+    cargo_target_dir: Option<String>,
     steps: Vec<StepRecord>,
     success: bool,
 }
@@ -85,7 +130,7 @@ struct StepRecord {
 }
 
 pub fn run(root: &Path) -> io::Result<()> {
-    let runner = SystemRunner;
+    let runner = SystemRunner::new(root)?;
     let head = query_text(&runner, root, &["rev-parse", "--verify", "HEAD"])?;
     let status = runner.run("git", &["status", "--porcelain=v1"], root)?;
     if !status.success {
@@ -108,7 +153,13 @@ pub fn run(root: &Path) -> io::Result<()> {
         .display()
         .to_string();
     let area = crate::worktree::local_storage_dir(root, "verify")?;
-    let record = execute(
+    if let Some(directory) = &runner.cargo_target_dir {
+        println!(
+            "Verification Cargo target directory: {}",
+            directory.display()
+        );
+    }
+    let mut record = execute(
         &runner,
         root,
         workspace,
@@ -117,6 +168,9 @@ pub fn run(root: &Path) -> io::Result<()> {
         dirty,
         now_unix_ns(),
     )?;
+    record.cargo_target_dir = runner
+        .cargo_target_dir
+        .map(|path| path.display().to_string());
     let record_path = write_record(&area, &record)?;
 
     for step in &record.steps {
@@ -199,6 +253,7 @@ fn execute(
         branch,
         head_sha,
         dirty,
+        cargo_target_dir: None,
         success: !failed,
         steps,
     })
@@ -243,6 +298,112 @@ mod tests {
     use std::cell::RefCell;
     use std::io;
     use std::path::Path;
+
+    #[test]
+    fn build_directory_avoids_the_running_image_and_reuses_other_cache() {
+        let primary = Path::new("cache/verify-build");
+        let fallback = Path::new("cache/verify-build-fallback");
+        for (executable, expected) in [
+            (Path::new("target/debug/xtask.exe"), primary),
+            (Path::new("cache/verify-build/debug/xtask.exe"), fallback),
+            (
+                Path::new("cache/verify-build-fallback/debug/xtask.exe"),
+                primary,
+            ),
+        ] {
+            assert_eq!(
+                super::select_build_directory(executable, primary, fallback).unwrap(),
+                expected
+            );
+        }
+        assert!(
+            super::select_build_directory(
+                Path::new("cache/xtask.exe"),
+                Path::new("cache"),
+                Path::new("cache")
+            )
+            .is_err()
+        );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_rebuild_probe() {
+        let Some(root) = std::env::var_os("SYSRQUI_VERIFY_LOCK_PROBE") else {
+            return;
+        };
+        let root = std::path::PathBuf::from(root);
+        let executable = std::env::current_exe().unwrap();
+        // Prove the fixture really is a mapped Windows image, not merely a fake runner.
+        assert!(
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open(&executable)
+                .is_err()
+        );
+        let bootstrap = root.join("bootstrap");
+        let baseline = super::SystemRunner {
+            cargo_target_dir: Some(bootstrap.clone()),
+        };
+        assert!(
+            !baseline
+                .run("cargo", &["build", "--offline"], &root)
+                .unwrap()
+                .success
+        );
+        let isolated = super::select_build_directory(
+            &executable.canonicalize().unwrap(),
+            &bootstrap.canonicalize().unwrap(),
+            &root.join("isolated"),
+        )
+        .unwrap();
+        let runner = super::SystemRunner {
+            cargo_target_dir: Some(isolated.clone()),
+        };
+        assert!(
+            runner
+                .run("cargo", &["build", "--offline"], &root)
+                .unwrap()
+                .success
+        );
+        assert!(isolated.join("debug/lock-probe.exe").is_file());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_workspace_build_succeeds_with_locked_bootstrap_executable() {
+        let root = std::env::temp_dir().join(format!(
+            "sysrqui-verify-lock-{}-{}",
+            std::process::id(),
+            super::now_unix_ns()
+        ));
+        std::fs::create_dir_all(root.join("src")).unwrap();
+        std::fs::create_dir_all(root.join("bootstrap/debug")).unwrap();
+        std::fs::write(
+            root.join("Cargo.toml"),
+            "[package]\nname = \"lock-probe\"\nversion = \"0.1.0\"\nedition = \"2024\"\n",
+        )
+        .unwrap();
+        std::fs::write(root.join("src/main.rs"), "fn main() {}\n").unwrap();
+        let helper = root.join("bootstrap/debug/lock-probe.exe");
+        std::fs::copy(std::env::current_exe().unwrap(), &helper).unwrap();
+        let output = std::process::Command::new(&helper)
+            .args([
+                "--exact",
+                "verify::tests::windows_rebuild_probe",
+                "--nocapture",
+            ])
+            .env("SYSRQUI_VERIFY_LOCK_PROBE", &root)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "probe failed:\n{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     struct FakeRunner {
         fail_step: Option<usize>,
