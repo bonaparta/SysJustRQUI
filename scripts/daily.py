@@ -133,7 +133,7 @@ def package(binary, target, sha, output):
     if any(p.exists() for p in paths):
         raise ValueError("輸出已存在，拒絕覆寫")
     metadata = {"schema": 1, "sha": sha, "target": target, "gui_verified": False,
-                "checks": "workspace fmt/build/test/clippy passed before packaging",
+                "checks": "See Actions run; package itself does not execute workspace verification",
                 "signing": "unsigned" if "windows" in target else "ad-hoc only; not Developer ID signed or notarized",
                 "dependencies": info}
     with tempfile.TemporaryDirectory() as temp:
@@ -201,6 +201,8 @@ def publish(repo, sha, date, directory, baseline):
     existing = next((r for r in current if r["tag_name"] == tag), None)
     if existing and not existing["draft"]:
         raise ValueError("同名非 draft Release 不完整，拒絕覆寫")
+    if existing and existing["target_commitish"] != sha:
+        raise ValueError("既有 draft 的 source SHA 不符，拒絕復用")
     notes = (f"# SysRQUI daily 測試版 {date}\n\nSource SHA: `{sha}`\n\n"
              "提供 Windows x64／ARM64、macOS Intel x64／Apple Silicon arm64 四份 ZIP。"
              "所有產物來自相同 SHA，各 target 已通過 workspace fmt/build/test/clippy。\n\n"
@@ -227,6 +229,10 @@ def publish(repo, sha, date, directory, baseline):
         remote = next(r for r in releases(repo) if r["tag_name"] == tag)
         if {a["name"] for a in remote["assets"] if a["size"] > 0} != required_assets(sha):
             raise ValueError("遠端 assets 不完整，保留 draft 不發布")
+        for asset in remote["assets"]:
+            local = directory / asset["name"]
+            if asset.get("digest") != "sha256:" + digest(local) or asset["size"] != local.stat().st_size:
+                raise ValueError("遠端 asset checksum／大小不符，保留 draft 不發布")
         gh("release", "edit", tag, "--repo", repo, "--draft=false", "--prerelease", "--latest=false")
 
 

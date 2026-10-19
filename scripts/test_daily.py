@@ -13,7 +13,7 @@ OTHER = "b" * 40
 
 
 def release(sha=SHA, date="20261019", draft=False):
-    return {"tag_name": f"daily-{date}-{sha}", "draft": draft, "prerelease": True,
+    return {"tag_name": f"daily-{date}-{sha}", "draft": draft, "prerelease": True, "target_commitish": sha,
             "published_at": date, "assets": [{"name": n, "size": 1} for n in daily.required_assets(sha)]}
 
 
@@ -99,6 +99,9 @@ class DailyTests(unittest.TestCase):
                     daily.publish("o/r", SHA, "20261019", directory, "")
                 self.assertFalse(any("--draft=false" in c.args for c in remote.call_args_list))
             draft = release(draft=True)
+            for asset in draft["assets"]:
+                local = directory / asset["name"]
+                asset.update(size=local.stat().st_size, digest="sha256:" + daily.digest(local))
             with patch("daily.releases", return_value=[draft]), patch("daily.gh", return_value="") as remote:
                 daily.publish("o/r", SHA, "20261019", directory, "")
                 self.assertFalse(any(c.args[:2] == ("release", "create") for c in remote.call_args_list))
