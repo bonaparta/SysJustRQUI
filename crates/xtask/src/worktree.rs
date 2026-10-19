@@ -197,6 +197,13 @@ fn create(
     let path = worktree_root.join(format!("issue-{issue}"));
     let manifest_path = manifest_path(&context, issue);
     if manifest_path.exists() {
+        let previous = read_manifest(&manifest_path, issue)?;
+        validate_manifest(&previous, issue)?;
+        if previous.state == "removed" {
+            archive_removed_manifest(&context, &manifest_path, &previous)?;
+        }
+    }
+    if manifest_path.exists() {
         let mut manifest = read_manifest(&manifest_path, issue)?;
         validate_manifest(&manifest, issue)?;
         if manifest.owner != owner {
@@ -210,9 +217,9 @@ fn create(
                 "issue already has a worktree recorded under a different root",
             ));
         }
-        if manifest.state == "removed" || manifest.state == "branch_retained" {
+        if manifest.state == "branch_retained" {
             return Err(invalid(
-                "issue has a prior removal record; inspect status and resolve it before creating another run",
+                "issue has a prior run whose branch was retained; inspect status and resolve it before creating another run",
             ));
         }
         if manifest.state != "active" && manifest.state != "creating" {
@@ -831,6 +838,41 @@ fn manifest_path(context: &RepoContext, issue: u64) -> PathBuf {
     context.registry_dir.join(format!("issue-{issue}.json"))
 }
 
+/// A removed run is finished, so its record moves to `runs/archive/` and the issue can start a
+/// new run, possibly under another owner. Anything still on disk or in Git needs a human.
+fn archive_removed_manifest(
+    context: &RepoContext,
+    manifest_path: &Path,
+    manifest: &Manifest,
+) -> io::Result<()> {
+    if registered_entry(&context.main_root, &manifest.path, &manifest.branch)?.is_some()
+        || manifest.path.exists()
+        || branch_exists(&context.main_root, &manifest.branch)?
+    {
+        return Err(invalid(
+            "removed run still has a worktree, path or branch; manual review required",
+        ));
+    }
+    if manifest.run_id.is_empty()
+        || !manifest
+            .run_id
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'-')
+    {
+        return Err(invalid(
+            "removed run has an invalid run-id; manual review required",
+        ));
+    }
+    let archive = ensure_directory(&context.main_root, &context.registry_dir.join("archive"))?;
+    let target = archive.join(format!("issue-{}-{}.json", manifest.issue, manifest.run_id));
+    if target.exists() {
+        return Err(invalid(
+            "archived run record already exists; refusing to overwrite it",
+        ));
+    }
+    fs::rename(manifest_path, target)
+}
+
 fn validate_manifest(manifest: &Manifest, issue: u64) -> io::Result<()> {
     if manifest.version != 1
         || manifest.issue != issue
@@ -950,7 +992,7 @@ fn invalid(message: impl Into<String>) -> io::Error {
 #[cfg(test)]
 mod tests {
     use super::{
-        active_worktree, create, git_stdout, parse_args, remove, repo_context, status,
+        Manifest, active_worktree, create, git_stdout, parse_args, remove, repo_context, status,
         validate_owner, validate_target_path,
     };
     #[cfg(windows)]
@@ -1216,6 +1258,76 @@ mod tests {
         assert_eq!(record.state, "removed");
         assert_eq!(head, None);
         assert!(remove(&fixture.root, 26, "codex").is_ok());
+    }
+
+    fn removed_run(fixture: &Fixture, issue: u64) -> Manifest {
+        let manifest = create(&fixture.root, issue, "codex", Some(&fixture.worktrees)).unwrap();
+        let branch = format!("codex/issue-{issue}-worktree");
+        fs::write(manifest.path.join("change.txt"), "merged change\n").unwrap();
+        command(&manifest.path, ["git", "add", "change.txt"]);
+        command(&manifest.path, ["git", "commit", "-m", "merged change"]);
+        command(
+            &fixture.root,
+            ["git", "merge", "--no-ff", &branch, "-m", "merge worktree"],
+        );
+        command(&fixture.root, ["git", "push", "origin", "main"]);
+        remove(&fixture.root, issue, "codex").unwrap();
+        manifest
+    }
+
+    fn archived_record(fixture: &Fixture, manifest: &Manifest) -> PathBuf {
+        let context = repo_context(&fixture.root).unwrap();
+        context
+            .registry_dir
+            .join("archive")
+            .join(format!("issue-{}-{}.json", manifest.issue, manifest.run_id))
+    }
+
+    #[test]
+    fn create_archives_a_removed_run_and_starts_a_new_one_for_any_owner() {
+        let fixture = Fixture::new();
+        let old = removed_run(&fixture, 31);
+
+        let new = create(&fixture.root, 31, "claude", Some(&fixture.worktrees)).unwrap();
+        assert_ne!(new.run_id, old.run_id);
+        assert_eq!(new.owner, "claude");
+        assert_eq!(new.state, "active");
+        assert!(new.path.exists());
+        let archived: Manifest =
+            serde_json::from_slice(&fs::read(archived_record(&fixture, &old)).unwrap()).unwrap();
+        assert_eq!(archived.run_id, old.run_id);
+        assert_eq!(archived.state, "removed");
+    }
+
+    #[test]
+    fn create_keeps_a_removed_run_that_still_has_a_branch_or_archive_collision() {
+        let fixture = Fixture::new();
+        let old = removed_run(&fixture, 32);
+        command(&fixture.root, ["git", "branch", "codex/issue-32-worktree"]);
+        assert!(create(&fixture.root, 32, "codex", Some(&fixture.worktrees)).is_err());
+        assert!(!archived_record(&fixture, &old).exists());
+        command(
+            &fixture.root,
+            ["git", "branch", "-D", "codex/issue-32-worktree"],
+        );
+
+        let target = archived_record(&fixture, &old);
+        fs::create_dir_all(target.parent().unwrap()).unwrap();
+        fs::write(&target, "keep me\n").unwrap();
+        assert!(create(&fixture.root, 32, "codex", Some(&fixture.worktrees)).is_err());
+        assert_eq!(fs::read_to_string(&target).unwrap(), "keep me\n");
+        assert_eq!(status(&fixture.root, 32).unwrap().0.state, "removed");
+    }
+
+    #[test]
+    fn create_refuses_a_run_whose_branch_was_retained() {
+        let fixture = Fixture::new();
+        let mut old = removed_run(&fixture, 33);
+        old.state = "branch_retained".to_owned();
+        let context = repo_context(&fixture.root).unwrap();
+        super::write_manifest(&super::manifest_path(&context, 33), &old).unwrap();
+        assert!(create(&fixture.root, 33, "codex", Some(&fixture.worktrees)).is_err());
+        assert!(!archived_record(&fixture, &old).exists());
     }
 
     #[test]

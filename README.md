@@ -89,7 +89,7 @@ cargo xtask worktree status --issue 18
 cargo xtask worktree remove --issue 18 --owner codex
 ```
 
-`create` 會先 `git fetch origin main`，以最新 `origin/main` 建立 `codex/issue-18-worktree`；同一 owner 重跑會驗證並復用既有工作區。`status` 只讀本機 registry 與 Git worktree 狀態，不會建立 registry。`remove` 僅接受登記工作區，且要求工作樹（含 ignored 檔）乾淨、HEAD 已在最新 `origin/main`，並使用非強制的 Git worktree／branch 移除；檢查不通過時保留資料供人工處理。移除後保留 registry 記錄供查詢。若中斷在工作區／branch 移除附近，先查看 `status`，確認資料與遠端合併狀態後可重試 `remove`；無法證明安全時會拒絕操作。初版 manifest 更新非 crash-atomic，不代表支援跨程序或跨機互斥。
+`create` 會先 `git fetch origin main`，以最新 `origin/main` 建立 `codex/issue-18-worktree`；同一 owner 重跑會驗證並復用既有工作區。`status` 只讀本機 registry 與 Git worktree 狀態，不會建立 registry。`remove` 僅接受登記工作區，且要求工作樹（含 ignored 檔）乾淨、HEAD 已在最新 `origin/main`，並使用非強制的 Git worktree／branch 移除；檢查不通過時保留資料供人工處理。移除後保留 registry 記錄供查詢。同一 issue 之後再執行 `create` 時，若前一個 run 已完整移除（Git worktree、路徑與 branch 都不存在），會把舊紀錄改名封存到 `.loop/runs/archive/`，再以新 run-id 建立工作區，可換 owner；branch 仍保留或資料不一致時照舊拒絕。若中斷在工作區／branch 移除附近，先查看 `status`，確認資料與遠端合併狀態後可重試 `remove`；無法證明安全時會拒絕操作。初版 manifest 更新非 crash-atomic，不代表支援跨程序或跨機互斥。
 
 ### 固定驗證與任務工作包
 

@@ -53,7 +53,7 @@ cargo xtask harness resume --issue 19 --owner Codex --worker C:\tools\loop-worke
 
 `cancel` 是冪等請求，回報「已提出」不代表 worker 已停止。明確執行 `resume` 會確認取消標記移轉當下已存在的請求；coordinator 不應並行執行相反的 cancel／resume 操作。若要取消已恢復的執行，請在 resume 的確認階段之後重新提出取消，不能假設重疊的 cancel 一定優先。
 
-執行紀錄位於主要 checkout 被忽略的 `.loop/harness/`；不要刪鎖檔、改寫 journal 或手動清除未確認停止的 run。紀錄損毀、owner／指派不一致、停止無法確認或 GitHub 無法核對時，保留工作區與證據，由 coordinator 判斷下一步。恢復還須位於原 Windows session；跨登入 session 不能以查不到 Local Job 就推定程序已停。
+執行紀錄位於主要 checkout 被忽略的 `.loop/harness/`；同一 issue 開新 run 後第一次 `run-once` 時，若 `.loop/harness/issue-<N>/` 屬於先前的 run-id、run lock 可取得且沒有未結束的 attempt，會改名封存到 `.loop/harness/archive/issue-<N>-<舊 run-id>/`；同一 run-id、仍有 attempt 未結束或封存目標已存在時拒絕。不要刪鎖檔、改寫 journal 或手動清除未確認停止的 run。紀錄損毀、owner／指派不一致、停止無法確認或 GitHub 無法核對時，保留工作區與證據，由 coordinator 判斷下一步。恢復還須位於原 Windows session；跨登入 session 不能以查不到 Local Job 就推定程序已停。
 
 每個 Git／GitHub 探測另有 15 秒時限；worker 時間預算不包含這些核對與最長 30 秒的程序清理。此鎖只協調同機本機檔案系統，不是跨機排程服務；token／context 無法取得時記未知，不能用帳戶配額推算。
 
